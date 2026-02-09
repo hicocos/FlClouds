@@ -1,6 +1,20 @@
-# ☁️ FoomClous
+<p align="center">
+  <img src="backend/logo.png" alt="FoomClous Logo" width="120" />
+</p>
 
-**FoomClous** 是一款高性能、极简主义的个人私有云存储解决方案。支持大文件切片上传、实时图片预览、视频流播放，并提供强大的 API 支持（如 Telegram Bot 集成）。
+<h1 align="center">☁️ FoomClous</h1>
+
+<p align="center">
+  <img src="https://img.shields.io/github/license/nccttc/foomclous?style=flat-square&color=blue" alt="License" />
+  <img src="https://img.shields.io/github/stars/nccttc/foomclous?style=flat-square&color=gold" alt="Stars" />
+  <img src="https://img.shields.io/github/forks/nccttc/foomclous?style=flat-square&color=lightgrey" alt="Forks" />
+  <img src="https://img.shields.io/github/issues/nccttc/foomclous?style=flat-square&color=red" alt="Issues" />
+  <img src="https://img.shields.io/badge/Security-HDFS--Ready-green?style=flat-square" alt="Security" />
+</p>
+
+<p align="center">
+  <strong>FoomClous</strong> 是一款高性能、极简主义的个人私有云存储解决方案。支持大文件切片上传、实时图片预览、视频流播放，并提供强大的 API 支持（如 Telegram Bot 集成）。
+</p>
 
 ---
 
