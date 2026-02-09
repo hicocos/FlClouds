@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import checkDiskSpaceModule from 'check-disk-space';
 import { query } from '../db/index.js';
 import os from 'os';
+import path from 'path';
 
 // ESM compatibility
 const checkDiskSpace = (checkDiskSpaceModule as any).default || checkDiskSpaceModule;
@@ -13,8 +14,8 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || './data/uploads';
 // 获取存储统计
 router.get('/stats', async (_req: Request, res: Response) => {
     try {
-        // 获取服务器磁盘空间
-        const diskPath = os.platform() === 'win32' ? 'C:' : '/';
+        // 获取服务器磁盘空间（使用上传目录所在的路径，Docker 中反映卷的空间）
+        const diskPath = os.platform() === 'win32' ? 'C:' : path.resolve(UPLOAD_DIR);
         const diskSpace = await checkDiskSpace(diskPath);
 
         // 获取 FoomClous 使用的空间

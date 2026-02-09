@@ -1,6 +1,19 @@
 import { authService } from './auth';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:51947';
+const getApiBase = () => {
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl && envUrl !== 'http://localhost:51947') {
+        return envUrl;
+    }
+    // 如果没有配置或在生产环境且为 localhost，尝试使用当前域名
+    if (import.meta.env.PROD) {
+        // 在生产环境下，如果前后端同域或通过代理，可以直接使用相对路径或当前 origin
+        return window.location.origin;
+    }
+    return 'http://localhost:51947';
+};
+
+const API_BASE = getApiBase();
 
 // 分块大小：50MB（小于 Cloudflare 100MB 限制）
 const CHUNK_SIZE = 50 * 1024 * 1024;

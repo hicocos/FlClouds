@@ -3,12 +3,13 @@ version: '3.8'
 services:
   # 前端（暴露到宿主机供 Nginx 反代）
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=${VITE_API_URL:-https://jk.foomclous.dpdns.org}
     container_name: foomclous-frontend
     ports:
       - "127.0.0.1:47832:80"
-    environment:
-      - VITE_API_URL=https://co.zrn.qzz.io
     networks:
       - foomclous-network
     restart: unless-stopped
