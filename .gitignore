@@ -16,3 +16,4 @@ debug_output.txt
 src/debug_telegram*.ts
 src/test_import.ts
 *.tsbuildinfo
+backend/*.sql

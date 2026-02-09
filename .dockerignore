@@ -6,3 +6,4 @@ dist
 foomclous.tar.gz
 verify_sanitization.js
 verify_sanitization.ts
+backend/*.sql
