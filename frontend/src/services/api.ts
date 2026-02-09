@@ -15,6 +15,7 @@ const getApiBase = () => {
 };
 
 const API_BASE = getApiBase();
+console.log('🚀 FoomClous API_BASE:', API_BASE || '(relative path)');
 
 // 分块大小：50MB（小于 Cloudflare 100MB 限制）
 const CHUNK_SIZE = 50 * 1024 * 1024;

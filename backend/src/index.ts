@@ -37,9 +37,10 @@ if (!fs.existsSync(CHUNK_DIR)) {
     console.log(`📁 创建分块目录: ${CHUNK_DIR}`);
 }
 
-// 中间件
+// 中间件 (允许全域访问以协助调试，生产稳定后可缩减)
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: true, // 允许所有来源
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'X-API-Key', 'X-Upload-Id', 'X-Chunk-Index', 'Authorization'],
 }));

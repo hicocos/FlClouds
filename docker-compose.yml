@@ -3,6 +3,7 @@ version: '3.8'
 services:
   # 前端（暴露到宿主机供 Nginx 反代）
   frontend:
+    image: cxaryoro/foomclous-frontend
     build:
       context: ./frontend
       args:
@@ -16,6 +17,7 @@ services:
 
   # 后端（暴露到宿主机供 Nginx 反代）
   backend:
+    image: cxaryoro/foomclous-backend
     build: ./backend
     container_name: foomclous-backend
     ports:
