@@ -18,3 +18,4 @@ src/test_import.ts
 *.tsbuildinfo
 backend/*.sql
 frontend/.env*
+nginx/
