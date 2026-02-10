@@ -32,6 +32,7 @@ cd foomclous
 ```bash
 cp .env.example .env
 vi .env  # 修改 DB_PASSWORD, CORS_ORIGIN 等
+也可进入服务器 /root/foomclous 目录下修改 .env 文件
 ```
 
 ### 3. 构建并启动 (⚠️ 重要)
@@ -94,6 +95,9 @@ docker compose -f docker-compose.prod.yml up -d
 ## 🔐 安全与访问控制
 
 如果设置了 `ACCESS_PASSWORD_HASH`，访问网页和 API 将需要输入密码。本应用目前使用 **SHA-256** 算法进行哈希。
+
+> [!CAUTION]
+>注：因TGbot键盘只支持四位数字，所以密码长度限制为四位数字，且不能包含特殊字符，请在生成密码时注意。
 
 ### 如何生成密码哈希值？
 
