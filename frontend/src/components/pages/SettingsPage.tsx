@@ -144,7 +144,7 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
             console.log(`[OneDrive] Using Redirect URI: ${redirectUri}`);
 
             // 获取授权 URL
-            const { authUrl } = await fileApi.getOneDriveAuthUrl(odClientId, odTenantId || 'common', redirectUri);
+            const { authUrl } = await fileApi.getOneDriveAuthUrl(odClientId, odTenantId || 'common', redirectUri, odClientSecret);
 
             // 打开弹出窗口进行授权
             const width = 600;

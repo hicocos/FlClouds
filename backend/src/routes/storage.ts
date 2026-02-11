@@ -133,13 +133,24 @@ router.get('/config', requireAuth, async (req: Request, res: Response) => {
 // 获取 OneDrive 授权 URL
 router.post('/config/onedrive/auth-url', requireAuth, async (req: Request, res: Response) => {
     try {
-        const { clientId, tenantId, redirectUri } = req.body;
+        const { clientId, tenantId, redirectUri, clientSecret } = req.body;
         if (!clientId || !redirectUri) {
             return res.status(400).json({ error: '缺少 Client ID 或 Redirect URI' });
         }
 
-        const { OneDriveStorageProvider } = await import('../services/storage.js');
+        const { OneDriveStorageProvider, StorageManager } = await import('../services/storage.js');
         const authUrl = OneDriveStorageProvider.generateAuthUrl(clientId, tenantId || 'common', redirectUri);
+
+        // 临保存配置以便回调使用
+        if (clientSecret) {
+            await StorageManager.updateSetting('onedrive_client_secret', clientSecret);
+        } else {
+            // 如果没有提供 clientSecret，确保清除旧的，避免使用错误的 secret
+            await StorageManager.updateSetting('onedrive_client_secret', '');
+        }
+        await StorageManager.updateSetting('onedrive_client_id', clientId);
+        await StorageManager.updateSetting('onedrive_tenant_id', tenantId || 'common');
+
         res.json({ authUrl });
     } catch (error) {
         console.error('获取授权 URL 失败:', error);
@@ -174,10 +185,22 @@ router.get('/onedrive/callback', async (req: Request, res: Response) => {
         console.log(`[OneDrive] OAuth Callback, using redirectUri: ${redirectUri}`);
 
         if (!clientId) {
+            console.error('[OneDrive] OAuth Callback failed: Client ID not found in settings');
             return res.send('配置信息丢失（Client ID 未找到），请返回设置页面重试。');
         }
 
-        const tokens = await OneDriveStorageProvider.exchangeCodeForToken(clientId, clientSecret, tenantId, redirectUri, code as string);
+        let tokens;
+        try {
+            tokens = await OneDriveStorageProvider.exchangeCodeForToken(clientId, clientSecret, tenantId, redirectUri, code as string);
+        } catch (err: any) {
+            console.error('[OneDrive] exchangeCodeForToken failed:', {
+                error: err.response?.data || err.message,
+                clientId: clientId.substring(0, 8) + '...',
+                redirectUri,
+                tenantId
+            });
+            throw err;
+        }
 
         // 我们还需要获取账户名称（通常是邮箱）
         const profileRes = await axios.get('https://graph.microsoft.com/v1.0/me', {

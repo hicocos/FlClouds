@@ -672,10 +672,12 @@ export class StorageManager {
         await this.init();
     }
 
-    // 更新 OneDrive 配置并切换
     async updateOneDriveConfig(clientId: string, clientSecret: string, refreshToken: string, tenantId: string = 'common') {
-        // 这个旧方法现在用于更新或添加“默认”账户，为了兼容性
-        // 我们改为查找当前激活的账户或添加新账户
+        // 同步更新 system_settings 以便 OAuth 回调获取最新的 Client ID/Secret
+        await StorageManager.updateSetting('onedrive_client_id', clientId);
+        await StorageManager.updateSetting('onedrive_client_secret', clientSecret);
+        await StorageManager.updateSetting('onedrive_tenant_id', tenantId);
+
         if (this.activeAccountId && this.activeProvider.name === 'onedrive') {
             await query(
                 `UPDATE storage_accounts 
@@ -683,7 +685,8 @@ export class StorageManager {
                  WHERE id = $1`,
                 [this.activeAccountId, JSON.stringify({ clientId, clientSecret, refreshToken, tenantId })]
             );
-        } else {
+        } else if (refreshToken !== 'pending') {
+            // 只有在有实际 Token 时才添加或更新账户，或者如果是第一次设置
             await this.addOneDriveAccount('OneDrive', clientId, clientSecret, refreshToken, tenantId);
             // 自动开启
             const res = await query('SELECT id FROM storage_accounts WHERE type = $1 ORDER BY created_at DESC LIMIT 1', ['onedrive']);

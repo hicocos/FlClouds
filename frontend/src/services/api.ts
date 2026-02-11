@@ -368,14 +368,11 @@ class FileAPI {
         return response.json();
     }
 
-    async getOneDriveAuthUrl(clientId: string, tenantId: string, redirectUri: string): Promise<{ authUrl: string }> {
+    async getOneDriveAuthUrl(clientId: string, tenantId: string = 'common', redirectUri: string, clientSecret?: string): Promise<{ authUrl: string }> {
         const response = await fetch(`${API_BASE}/api/storage/config/onedrive/auth-url`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...authService.getAuthHeaders(),
-            },
-            body: JSON.stringify({ clientId, tenantId, redirectUri }),
+            headers: getHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ clientId, tenantId, redirectUri, clientSecret }),
         });
 
         if (!response.ok) {
