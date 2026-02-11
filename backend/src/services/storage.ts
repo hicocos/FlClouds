@@ -538,13 +538,21 @@ export class StorageManager {
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     updated_at TIMESTAMPTZ DEFAULT NOW()
                 );
+
+                -- 确保 files 表有 storage_account_id 字段
+                DO $$ 
+                BEGIN 
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='files' AND column_name='storage_account_id') THEN
+                        ALTER TABLE files ADD COLUMN storage_account_id UUID;
+                    END IF;
+                END $$;
             `);
 
             // 1. 迁移旧配置（如果存在且尚未迁移）
             await this.migrateLegacyConfig();
 
-            // 2. 获取当前激活的 Provider 类型
-            const providerRes = await query('SELECT value FROM system_settings WHERE key = $1', ['storage_provider']);
+            // 2. 获取当前激活的 Provider 类型 (统一使用 active_storage_provider)
+            const providerRes = await query('SELECT value FROM system_settings WHERE key = $1', ['active_storage_provider']);
             const providerName = providerRes.rows[0]?.value || 'local';
 
             // 3. 加载所有 OneDrive 账户
@@ -589,17 +597,28 @@ export class StorageManager {
 
             // 检查是否已经迁移过（通过 clientId 匹配测试）
             const existing = await query('SELECT id FROM storage_accounts WHERE config->>\'clientId\' = $1', [clientId]);
+            let accountId: string;
+
             if (existing.rows.length === 0) {
-                await query(
+                const insertRes = await query(
                     `INSERT INTO storage_accounts (type, name, config, is_active) 
-                     VALUES ($1, $2, $3, $4)`,
+                     VALUES ($1, $2, $3, $4) RETURNING id`,
                     ['onedrive', 'Default Account', JSON.stringify({ clientId, clientSecret, refreshToken, tenantId }), true]
                 );
+                accountId = insertRes.rows[0].id;
                 console.log('[StorageManager] Legacy config migrated successfully.');
+            } else {
+                accountId = existing.rows[0].id;
             }
 
-            // 清理旧设置（可选，建议保留一段时间以防万一，或者直接标记已迁移）
-            // 这里我们保持原样，init 逻辑会优先检查 storage_accounts
+            // 关键修复：确保所有 source='onedrive' 且没有 storage_account_id 的文件都关联到此账号
+            const updateRes = await query(
+                'UPDATE files SET storage_account_id = $1 WHERE source = $2 AND storage_account_id IS NULL',
+                [accountId, 'onedrive']
+            );
+            if (updateRes.rowCount! > 0) {
+                console.log(`[StorageManager] Associated ${updateRes.rowCount} legacy OneDrive files with account ${accountId}`);
+            }
         }
     }
 
@@ -661,10 +680,10 @@ export class StorageManager {
     // 切换激活账户
     async switchAccount(accountId: string | 'local') {
         if (accountId === 'local') {
-            await StorageManager.updateSetting('storage_provider', 'local');
+            await StorageManager.updateSetting('active_storage_provider', 'local');
             await query('UPDATE storage_accounts SET is_active = false');
         } else {
-            await StorageManager.updateSetting('storage_provider', 'onedrive');
+            await StorageManager.updateSetting('active_storage_provider', 'onedrive');
             await query('UPDATE storage_accounts SET is_active = (id = $1)', [accountId]);
         }
 
