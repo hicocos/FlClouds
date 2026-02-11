@@ -263,12 +263,14 @@ router.post('/complete', async (req: Request, res: Response) => {
             session.mimeType.startsWith('video/') ? 'video' :
                 session.mimeType.startsWith('audio/') ? 'audio' : 'other';
 
+        const activeAccountId = storageManager.getActiveAccountId();
+
         const result = await query(
             `INSERT INTO files 
-            (name, stored_name, type, mime_type, size, path, thumbnail_path, width, height, source, folder) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+            (name, stored_name, type, mime_type, size, path, thumbnail_path, width, height, source, folder, storage_account_id) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
             RETURNING id, created_at, name, type, size`,
-            [session.filename, storedName, type, session.mimeType, session.totalSize, storedPath, thumbnailPath, width, height, provider.name, session.folder || null]
+            [session.filename, storedName, type, session.mimeType, session.totalSize, storedPath, thumbnailPath, width, height, provider.name, session.folder || null, activeAccountId]
         );
 
         const newFile = result.rows[0];

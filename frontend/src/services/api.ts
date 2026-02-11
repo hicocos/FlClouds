@@ -46,6 +46,13 @@ export interface UploadProgress {
     percent: number;
 }
 
+export interface StorageAccount {
+    id: string;
+    name: string;
+    type: string;
+    is_active: boolean;
+}
+
 // 获取带认证的请求头
 function getHeaders(additionalHeaders: Record<string, string> = {}): HeadersInit {
     return {
@@ -303,7 +310,12 @@ class FileAPI {
     }
 
     // 获取存储配置
-    async getStorageConfig(): Promise<{ provider: string; onedrive: { clientId: string | null; tenantId?: string; hasSecret: boolean; hasRefreshToken: boolean }; redirectUri: string }> {
+    async getStorageConfig(): Promise<{
+        provider: string;
+        activeAccountId: string | null;
+        accounts: StorageAccount[];
+        redirectUri: string;
+    }> {
         const response = await fetch(`${API_BASE}/api/storage/config`, {
             headers: getHeaders(),
         });
@@ -324,18 +336,28 @@ class FileAPI {
         return response.json();
     }
 
-    // 切换存储提供商
-    async switchStorageProvider(provider: 'local' | 'onedrive'): Promise<{ success: boolean; message: string }> {
+    // 切换存储提供商或账户
+    async switchStorageProvider(provider: 'local' | 'onedrive', accountId?: string): Promise<{ success: boolean; message: string }> {
         const response = await fetch(`${API_BASE}/api/storage/switch`, {
             method: 'POST',
             headers: getHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({ provider }),
+            body: JSON.stringify({ provider, accountId }),
         });
         if (response.status === 401) throw new Error('UNAUTHORIZED');
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || '切换存储提供商失败');
+            throw new Error(error.error || '切换存储失败');
         }
+        return response.json();
+    }
+
+    // 获取所有账户
+    async getAccounts(): Promise<StorageAccount[]> {
+        const response = await fetch(`${API_BASE}/api/storage/accounts`, {
+            headers: getHeaders(),
+        });
+        if (response.status === 401) throw new Error('UNAUTHORIZED');
+        if (!response.ok) throw new Error('获取账户列表失败');
         return response.json();
     }
 

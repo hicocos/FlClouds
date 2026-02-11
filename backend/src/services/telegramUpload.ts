@@ -429,11 +429,12 @@ async function processFileUpload(client: TelegramClient, file: FileUploadItem, q
             }
 
             const folderName = queue?.folderName || null;
+            const activeAccountId = storageManager.getActiveAccountId();
 
             await query(`
-                INSERT INTO files (name, stored_name, type, mime_type, size, path, thumbnail_path, width, height, source, folder)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            `, [file.fileName, storedName, fileType, file.mimeType, actualSize, finalPath, thumbnailPath, dimensions.width, dimensions.height, sourceRef, folderName]);
+                INSERT INTO files (name, stored_name, type, mime_type, size, path, thumbnail_path, width, height, source, folder, storage_account_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            `, [file.fileName, storedName, fileType, file.mimeType, actualSize, finalPath, thumbnailPath, dimensions.width, dimensions.height, sourceRef, folderName, activeAccountId]);
 
             file.status = 'success';
             file.size = actualSize;
@@ -816,10 +817,12 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
                     }
                 }
 
+                const activeAccountId = storageManager.getActiveAccountId();
+
                 await query(`
-                    INSERT INTO files (name, stored_name, type, mime_type, size, path, thumbnail_path, width, height, source, folder)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                `, [finalFileName, storedName, fileType, mimeType, actualSize, finalPath, thumbnailPath, dimensions.width, dimensions.height, sourceRef, null]);
+                    INSERT INTO files (name, stored_name, type, mime_type, size, path, thumbnail_path, width, height, source, folder, storage_account_id)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                `, [finalFileName, storedName, fileType, mimeType, actualSize, finalPath, thumbnailPath, dimensions.width, dimensions.height, sourceRef, null, activeAccountId]);
 
                 const storageLabel = provider.name === 'onedrive' ? '☁️ OneDrive' : '💾 本地';
                 if (statusMsg) {

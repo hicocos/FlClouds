@@ -6,6 +6,7 @@ import fs from 'fs';
 import { formatBytes, getTypeEmoji } from '../utils/telegramUtils.js';
 import { authenticatedUsers, passwordInputState, isAuthenticated } from './telegramState.js';
 import { getDownloadQueueStats } from './telegramUpload.js';
+import { storageManager } from './storage.js';
 
 // ESM compatibility
 const checkDiskSpace = (checkDiskSpaceModule as any).default || checkDiskSpaceModule;
@@ -28,9 +29,16 @@ export async function handleHelp(message: Api.Message): Promise<void> {
 
 export async function handleStorage(message: Api.Message): Promise<void> {
     try {
+        const activeAccountId = storageManager.getActiveAccountId();
         const diskPath = os.platform() === 'win32' ? 'C:' : '/';
         const diskSpace = await checkDiskSpace(diskPath);
-        const result = await query(`SELECT COUNT(*) as file_count, COALESCE(SUM(size), 0) as total_size FROM files`);
+
+        // Fetch stats for the active account
+        const result = await query(`
+            SELECT COUNT(*) as file_count, COALESCE(SUM(size), 0) as total_size 
+            FROM files 
+            WHERE storage_account_id IS NOT DISTINCT FROM $1
+        `, [activeAccountId]);
         const foomclousStats = result.rows[0];
         const totalSize = parseInt(foomclousStats.total_size);
         const fileCount = parseInt(foomclousStats.file_count);
@@ -68,12 +76,14 @@ export async function handleList(message: Api.Message, args: string[]): Promise<
             }
         }
 
+        const activeAccountId = storageManager.getActiveAccountId();
         const result = await query(`
             SELECT id, name, type, size, folder, created_at 
             FROM files 
+            WHERE storage_account_id IS NOT DISTINCT FROM $2
             ORDER BY created_at DESC 
             LIMIT $1
-        `, [limit]);
+        `, [limit, activeAccountId]);
 
         if (result.rows.length === 0) {
             await message.reply({ message: '📭 暂无上传的文件' });
@@ -130,13 +140,14 @@ export async function handleDelete(message: Api.Message, args: string[]): Promis
     }
 
     try {
+        const activeAccountId = storageManager.getActiveAccountId();
         // 查找匹配的文件
         const result = await query(`
-            SELECT id, name, path, thumbnail_path 
+            SELECT id, name, path, thumbnail_path, source, storage_account_id 
             FROM files 
-            WHERE id::text LIKE $1
+            WHERE id::text LIKE $1 AND storage_account_id IS NOT DISTINCT FROM $2
             LIMIT 1
-        `, [fileIdPrefix + '%']);
+        `, [fileIdPrefix + '%', activeAccountId]);
 
         if (result.rows.length === 0) {
             await message.reply({ message: `❌ 未找到 ID 以 "${fileIdPrefix}" 开头的文件` });
@@ -146,7 +157,14 @@ export async function handleDelete(message: Api.Message, args: string[]): Promis
         const file = result.rows[0];
 
         // 删除实际文件
-        if (file.path && fs.existsSync(file.path)) {
+        if (file.source === 'onedrive') {
+            try {
+                const provider = storageManager.getProvider(`onedrive:${file.storage_account_id}`);
+                await provider.deleteFile(file.path);
+            } catch (err) {
+                console.warn('🤖 OneDrive 文件物理删除失败或文件已不存在:', err);
+            }
+        } else if (file.path && fs.existsSync(file.path)) {
             fs.unlinkSync(file.path);
         }
 

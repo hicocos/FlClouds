@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS files (
     height INT,
     source VARCHAR(50) DEFAULT 'web',
     folder VARCHAR(255),
+    storage_account_id UUID REFERENCES storage_accounts(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -63,5 +64,22 @@ CREATE OR REPLACE TRIGGER files_updated_at
 -- system_settings 表更新时间触发器
 CREATE OR REPLACE TRIGGER system_settings_updated_at
     BEFORE UPDATE ON system_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
+
+-- 存储账户表
+CREATE TABLE IF NOT EXISTS storage_accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type VARCHAR(50) NOT NULL, -- 'onedrive'
+    name VARCHAR(255) NOT NULL, -- 用户显示名称或邮箱
+    config JSONB NOT NULL, -- {clientId, clientSecret, refreshToken, tenantId}
+    is_active BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- storage_accounts 表更新时间触发器
+CREATE OR REPLACE TRIGGER storage_accounts_updated_at
+    BEFORE UPDATE ON storage_accounts
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();

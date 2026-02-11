@@ -4,6 +4,7 @@ import { query } from '../db/index.js';
 import { requireAuth } from './auth.js';
 import os from 'os';
 import path from 'path';
+import axios from 'axios';
 
 // ESM compatibility
 const checkDiskSpace = (checkDiskSpaceModule as any).default || checkDiskSpaceModule;
@@ -110,19 +111,17 @@ router.get('/config', requireAuth, async (req: Request, res: Response) => {
     try {
         const { storageManager } = await import('../services/storage.js');
         const provider = storageManager.getProvider();
-        const onedriveConfig = {
-            clientId: await storageManager.getSetting('onedrive_client_id'),
-            tenantId: await storageManager.getSetting('onedrive_tenant_id') || 'common',
-            // 不返回 clientSecret 和 refreshToken，只返回是否存在
-            hasSecret: !!(await storageManager.getSetting('onedrive_client_secret')),
-            hasRefreshToken: !!(await storageManager.getSetting('onedrive_refresh_token')),
-        };
+        const activeAccountId = storageManager.getActiveAccountId();
+
+        // 获取所有账户概览（不包含敏感配置）
+        const accounts = await storageManager.getAccounts();
 
         const redirectUri = getOneDriveRedirectUri(req);
 
         res.json({
             provider: provider.name,
-            onedrive: onedriveConfig,
+            activeAccountId,
+            accounts,
             redirectUri,
         });
     } catch (error) {
@@ -180,8 +179,22 @@ router.get('/onedrive/callback', async (req: Request, res: Response) => {
 
         const tokens = await OneDriveStorageProvider.exchangeCodeForToken(clientId, clientSecret, tenantId, redirectUri, code as string);
 
-        // 保存刷新令牌并切换
+        // 我们还需要获取账户名称（通常是邮箱）
+        const profileRes = await axios.get('https://graph.microsoft.com/v1.0/me', {
+            headers: { 'Authorization': `Bearer ${tokens.access_token}` }
+        });
+        const accountName = profileRes.data.mail || profileRes.data.userPrincipalName || 'OneDrive Account';
+
+        // 保存刷新令牌并记录
+        // 如果是从设置页面的“更新旧配置”来的，逻辑在 updateOneDriveConfig 里处理
+        // 如果是新添加账户，我们需要新的逻辑
         await storageManager.updateOneDriveConfig(clientId, clientSecret, tokens.refresh_token, tenantId);
+
+        // 更新账户名称
+        const activeId = storageManager.getActiveAccountId();
+        if (activeId) {
+            await query('UPDATE storage_accounts SET name = $1 WHERE id = $2', [accountName, activeId]);
+        }
 
         res.send(`
             <html>
@@ -228,30 +241,47 @@ router.put('/config/onedrive', requireAuth, async (req: Request, res: Response) 
     }
 });
 
-// 切换存储提供商
+// 切换存储提供商或具体账户
 router.post('/switch', requireAuth, async (req: Request, res: Response) => {
     try {
-        const { provider } = req.body;
-        const { storageManager, StorageManager } = await import('../services/storage.js');
+        const { provider, accountId } = req.body;
+        const { storageManager } = await import('../services/storage.js');
 
         if (provider === 'local') {
             await storageManager.switchToLocal();
+            return res.json({ success: true, message: '已切换到本地存储' });
         } else if (provider === 'onedrive') {
-            // 检查是否已配置
-            const hasToken = await storageManager.getSetting('onedrive_refresh_token');
-            if (!hasToken) {
-                return res.status(400).json({ error: 'OneDrive 未配置，无法切换' });
+            if (accountId) {
+                await storageManager.switchAccount(accountId);
+                return res.json({ success: true, message: '已切换 OneDrive 账户' });
+            } else {
+                // 如果没有指定 accountId，尝试切换到最后一个激活的或第一个 OneDrive 账户
+                const accounts = await storageManager.getAccounts();
+                const onedriveAccount = accounts.find(a => a.type === 'onedrive');
+                if (!onedriveAccount) {
+                    return res.status(400).json({ error: '未配置任何 OneDrive 账户' });
+                }
+                await storageManager.switchAccount(onedriveAccount.id);
+                return res.json({ success: true, message: '已切换到 OneDrive' });
             }
-            await StorageManager.updateSetting('storage_provider', 'onedrive');
-            await storageManager.init(); // 重新加载
         } else {
             return res.status(400).json({ error: '无效的存储提供商' });
         }
-
-        res.json({ success: true, message: `已切换到 ${provider} 存储` });
     } catch (error) {
-        console.error('切换存储提供商失败:', error);
-        res.status(500).json({ error: '切换存储提供商失败' });
+        console.error('切换存储失败:', error);
+        res.status(500).json({ error: '切换存储失败' });
+    }
+});
+
+// 获取账户列表
+router.get('/accounts', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const { storageManager } = await import('../services/storage.js');
+        const accounts = await storageManager.getAccounts();
+        res.json(accounts);
+    } catch (error) {
+        console.error('获取账户列表失败:', error);
+        res.status(500).json({ error: '获取账户列表失败' });
     }
 });
 

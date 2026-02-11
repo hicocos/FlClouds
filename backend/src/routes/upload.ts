@@ -128,12 +128,14 @@ const handleUpload = async (req: Request, res: Response, source: string = 'web')
         else if (mimeType.startsWith('audio/')) type = 'audio';
         else if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text')) type = 'document';
 
+        const activeAccountId = storageManager.getActiveAccountId();
+
         const result = await query(
             `INSERT INTO files 
-            (name, stored_name, type, mime_type, size, path, thumbnail_path, width, height, source, folder) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+            (name, stored_name, type, mime_type, size, path, thumbnail_path, width, height, source, folder, storage_account_id) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
             RETURNING id, created_at, name, type, size`,
-            [originalName, storedName, type, mimeType, size, storedPath, thumbnailPath, width, height, provider.name, folder || null]
+            [originalName, storedName, type, mimeType, size, storedPath, thumbnailPath, width, height, provider.name, folder || null, activeAccountId]
         );
 
         const newFile = result.rows[0];

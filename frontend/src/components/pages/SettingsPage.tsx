@@ -65,15 +65,19 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
     const { theme, setTheme } = useTheme();
 
     // Storage Configuration State
-    const [config, setConfig] = useState<{ provider: string; onedrive: { clientId: string | null; tenantId?: string; hasSecret: boolean; hasRefreshToken: boolean } } | null>(null);
+    const [config, setConfig] = useState<{
+        provider: string;
+        activeAccountId: string | null;
+        accounts: any[];
+        redirectUri: string;
+    } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [showOneDriveForm, setShowOneDriveForm] = useState(false);
 
-    // OneDrive Form State
+    // OneDrive Form State (for adding new account)
     const [odClientId, setOdClientId] = useState("");
     const [odClientSecret, setOdClientSecret] = useState("");
-    const [odRefreshToken] = useState("");
-    const [odTenantId, setOdTenantId] = useState("");
+    const [odTenantId, setOdTenantId] = useState("common");
 
     // Load initial config
     useEffect(() => {
@@ -81,10 +85,9 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
             try {
                 const data = await fileApi.getStorageConfig();
                 setConfig(data);
-                if (data.provider === 'onedrive') {
-                    // prefill logic
-                    if (data.onedrive.clientId) setOdClientId(data.onedrive.clientId);
-                    if (data.onedrive.tenantId) setOdTenantId(data.onedrive.tenantId);
+                if (data.provider === 'onedrive' && data.activeAccountId) {
+                    // Just pre-fill with defaults for new additions, or maybe we don't need pre-fill anymore
+                    // since we are adding NEW accounts.
                 }
             } catch (error) {
                 console.error("Failed to load storage config:", error);
@@ -93,27 +96,33 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
         loadConfig();
     }, []);
 
-    const handleSwitchProvider = async (provider: 'local' | 'onedrive') => {
+    const handleSwitchProvider = async (provider: 'local' | 'onedrive', accountId?: string) => {
         if (isSaving) return;
-        if (provider === config?.provider) return;
 
-        // If switching to OneDrive and not configured, show form
-        if (provider === 'onedrive' && (!config?.onedrive.hasRefreshToken)) {
+        // If switching to the same account/provider, do nothing
+        if (provider === 'local' && config?.provider === 'local') return;
+        if (provider === 'onedrive' && accountId === config?.activeAccountId) return;
+
+        // If switching to OneDrive and no accounts exist, show form
+        const onedriveAccounts = config?.accounts.filter(a => a.type === 'onedrive') || [];
+        if (provider === 'onedrive' && onedriveAccounts.length === 0) {
             setShowOneDriveForm(true);
             return;
         }
 
-        if (!window.confirm(`确定要切换存储源到 ${provider === 'local' ? '本地存储' : 'OneDrive'} 吗？`)) return;
+        const providerName = provider === 'local' ? '本地存储' : 'OneDrive';
+        if (!window.confirm(`确定要切换存储源到 ${providerName}${accountId ? ' (指定账户)' : ''} 吗？`)) return;
 
         setIsSaving(true);
         try {
-            await fileApi.switchStorageProvider(provider);
+            await fileApi.switchStorageProvider(provider, accountId);
             const data = await fileApi.getStorageConfig();
             setConfig(data);
-            alert(`已成功切换到 ${provider === 'local' ? '本地存储' : 'OneDrive'}`);
+            alert(`已成功切换到 ${providerName}`);
+            // Optional: refresh page or trigger file list reload if needed
+            window.location.reload(); // Simple way to ensure all components refresh
         } catch (error: any) {
             alert(error.message);
-            if (provider === 'onedrive') setShowOneDriveForm(true); // Maybe re-configure
         } finally {
             setIsSaving(false);
         }
@@ -128,7 +137,7 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
         try {
             // 首先保存基础配置（Client ID 和 Secret)
             // 注意：此时可能还没有 Refresh Token，后端需要处理这种情况
-            await fileApi.updateOneDriveConfig(odClientId, odClientSecret, odRefreshToken || 'pending', odTenantId || 'common');
+            await fileApi.updateOneDriveConfig(odClientId, odClientSecret, 'pending', odTenantId || 'common');
 
             // 获取后端建议的 Redirect URI（最准确，因为它指向真实的 API 地址）
             const redirectUri = (config as any)?.redirectUri || `${(window as any)._env_?.VITE_API_URL || import.meta.env.VITE_API_URL || window.location.origin}/api/storage/onedrive/callback`;
@@ -236,52 +245,104 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
 
             {/* Storage Configuration Section (New) */}
             <SettingsSection title="存储源设置">
-                <SettingsRow
-                    icon={Database}
-                    label="本地存储 (Local)"
-                    description="文件存储在服务器本地磁盘。适合常规使用，速度最快。"
-                    value={config?.provider === 'local' ? "正在使用" : ""}
-                    action={
-                        config?.provider === 'local' ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                        ) : (
-                            <Button
-                                size="sm" variant="outline"
-                                onClick={() => handleSwitchProvider('local')}
-                                disabled={isSaving || !config}
-                            >
-                                切换使用
-                            </Button>
-                        )
-                    }
-                />
-                <SettingsRow
-                    icon={Cloud}
-                    label="Microsoft OneDrive"
-                    description="文件存储在 OneDrive 网盘。节省服务器空间，支持大文件。"
-                    value={config?.provider === 'onedrive' ? "正在使用" : config?.onedrive.hasRefreshToken ? "已配置" : "未配置"}
-                    action={
-                        <div className="flex items-center gap-2">
-                            {config?.provider === 'onedrive' && <CheckCircle className="h-5 w-5 text-green-500" />}
-                            <Button
-                                size="sm"
-                                variant={config?.provider === 'onedrive' ? "secondary" : "outline"}
-                                onClick={() => setShowOneDriveForm(!showOneDriveForm)}
-                            >
-                                {config?.onedrive.hasRefreshToken ? "修改配置" : "配置"}
-                            </Button>
-                            {config?.provider !== 'onedrive' && config?.onedrive.hasRefreshToken && (
+                <div className="border-b border-border/50">
+                    <SettingsRow
+                        icon={Database}
+                        label="本地存储 (Local)"
+                        description="文件存储在服务器本地磁盘。适合常规使用，速度最快。"
+                        value={config?.provider === 'local' ? "正在使用" : ""}
+                        action={
+                            config?.provider === 'local' ? (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                            ) : (
                                 <Button
                                     size="sm" variant="outline"
-                                    onClick={() => handleSwitchProvider('onedrive')}
-                                    disabled={isSaving}
+                                    onClick={() => handleSwitchProvider('local')}
+                                    disabled={isSaving || !config}
                                 >
                                     切换使用
                                 </Button>
-                            )}
+                            )
+                        }
+                    />
+                </div>
+
+                <div className="p-4 bg-muted/20 border-b border-border/50">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-muted text-muted-foreground">
+                                <Cloud className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <span className="text-sm font-medium">Microsoft OneDrive 账户</span>
+                                <p className="text-xs text-muted-foreground">管理及切换多个 OneDrive 账户</p>
+                            </div>
                         </div>
-                    }
-                />
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setShowOneDriveForm(!showOneDriveForm)}
+                        >
+                            {showOneDriveForm ? "取消添加" : "添加新账户"}
+                        </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                        {config?.accounts.filter(a => a.type === 'onedrive').map((account) => (
+                            <div
+                                key={account.id}
+                                className={cn(
+                                    "flex items-center justify-between p-3 rounded-lg border transition-all",
+                                    account.is_active
+                                        ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10"
+                                        : "bg-background border-border hover:border-border/80"
+                                )}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={cn(
+                                        "h-2 w-2 rounded-full",
+                                        account.is_active ? "bg-primary animate-pulse" : "bg-muted-foreground/30"
+                                    )} />
+                                    <div>
+                                        <p className="text-sm font-medium">{account.name || "未命名账户"}</p>
+                                        <p className="text-[10px] text-muted-foreground font-mono opacity-60">{account.id}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {account.is_active ? (
+                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-500/10 text-green-600 dark:text-green-400">
+                                            <CheckCircle className="h-3.5 w-3.5" />
+                                            <span className="text-xs font-semibold">正在使用</span>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 text-xs hover:bg-primary/10 hover:text-primary"
+                                            onClick={() => handleSwitchProvider('onedrive', account.id)}
+                                            disabled={isSaving}
+                                        >
+                                            切换到此账户
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                        {config?.accounts.filter(a => a.type === 'onedrive').length === 0 && !showOneDriveForm && (
+                            <div className="text-center py-6 border border-dashed rounded-lg border-border/50">
+                                <p className="text-xs text-muted-foreground">尚未配置 OneDrive 账户</p>
+                                <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="mt-1"
+                                    onClick={() => setShowOneDriveForm(true)}
+                                >
+                                    立即添加
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 <AnimatePresence>
                     {showOneDriveForm && (
@@ -341,28 +402,19 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
                                 <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-3">
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
-                                            <h4 className="text-sm font-medium">账号授权</h4>
-                                            <p className="text-xs text-muted-foreground">点击下方按钮前往微软页面完成授权，系统将全自动获取令牌。</p>
+                                            <h4 className="text-sm font-medium text-blue-600 dark:text-blue-400">开始授权新账户</h4>
+                                            <p className="text-xs text-muted-foreground">点击下方按钮前往微软页面完成授权，系统将自动识别并添加该账户。</p>
                                         </div>
                                         <Button
                                             size="sm"
                                             onClick={handleSaveOneDriveConfig}
                                             disabled={isSaving || !odClientId}
-                                            className="shadow-lg shadow-primary/20"
+                                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20"
                                         >
-                                            {isSaving ? "发起授权中..." : "保存并开始授权"}
+                                            {isSaving ? "发起中..." : "保存并授权"}
                                         </Button>
                                     </div>
                                 </div>
-
-                                {config?.onedrive.hasRefreshToken && (
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium opacity-50">Refresh Token (只读)</label>
-                                        <div className="px-3 py-2 rounded-lg border border-border bg-black/5 text-xs font-mono text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap">
-                                            已配置 (加密隐藏)
-                                        </div>
-                                    </div>
-                                )}
 
                                 <div className="flex justify-end pt-2">
                                     <Button variant="ghost" onClick={() => setShowOneDriveForm(false)}>关闭</Button>

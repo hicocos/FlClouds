@@ -6,6 +6,7 @@ import { query } from '../db/index.js';
 
 // 接口定义
 export interface IStorageProvider {
+    id?: string; // 对于云盘，这是账户 ID
     name: string;
     /**
      * 保存文件
@@ -98,12 +99,13 @@ export class OneDriveStorageProvider implements IStorageProvider {
     private readonly ONEDRIVE_FOLDER = 'FoomClous'; // 存储文件夹名
 
     constructor(
+        public id: string,
         private clientId: string,
         private clientSecret: string,
         private refreshToken: string,
         private tenantId: string = 'common'
     ) {
-        console.log('[OneDrive] Provider initialized with clientId:', clientId.substring(0, 8) + '...', 'Tenant:', tenantId);
+        console.log(`[OneDrive] Provider ${id} initialized with clientId:`, clientId.substring(0, 8) + '...', 'Tenant:', tenantId);
     }
 
     /**
@@ -179,9 +181,9 @@ export class OneDriveStorageProvider implements IStorageProvider {
 
                 // 更新 refresh_token（如果返回了新的）
                 if (response.data.refresh_token && response.data.refresh_token !== this.refreshToken) {
-                    console.log('[OneDrive] New refresh token received, updating database...');
+                    console.log(`[OneDrive] New refresh token received for account ${this.id}, updating database...`);
                     this.refreshToken = response.data.refresh_token;
-                    await StorageManager.updateSetting('onedrive_refresh_token', this.refreshToken);
+                    await StorageManager.updateAccountToken(this.id, this.refreshToken);
                 }
 
                 return this.accessToken!;
@@ -500,6 +502,7 @@ export class StorageManager {
     private static instance: StorageManager;
     private activeProvider: IStorageProvider;
     private providers: Map<string, IStorageProvider> = new Map();
+    private activeAccountId: string | null = null;
 
     private constructor() {
         // 默认初始化 LocalProvider
@@ -518,43 +521,85 @@ export class StorageManager {
     // 初始化：从数据库加载配置
     async init() {
         try {
-            // 0. Ensure table exists (Migration on init)
+            // 0. 确保表存在
             await query(`
                 CREATE TABLE IF NOT EXISTS system_settings (
                     key VARCHAR(255) PRIMARY KEY,
                     value TEXT NOT NULL,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+                
+                CREATE TABLE IF NOT EXISTS storage_accounts (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    type VARCHAR(50) NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    config JSONB NOT NULL,
+                    is_active BOOLEAN DEFAULT false,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                );
             `);
 
-            // 1. 获取当前激活的 Provider
+            // 1. 迁移旧配置（如果存在且尚未迁移）
+            await this.migrateLegacyConfig();
+
+            // 2. 获取当前激活的 Provider 类型
             const providerRes = await query('SELECT value FROM system_settings WHERE key = $1', ['storage_provider']);
             const providerName = providerRes.rows[0]?.value || 'local';
 
-            // 2. 如果是 OneDrive，加载凭证
-            if (providerName === 'onedrive') {
-                const clientId = await this.getSetting('onedrive_client_id');
-                const clientSecret = await this.getSetting('onedrive_client_secret'); // Can be empty
-                const refreshToken = await this.getSetting('onedrive_refresh_token');
-                const tenantId = await this.getSetting('onedrive_tenant_id') || 'common';
+            // 3. 加载所有 OneDrive 账户
+            const accountsRes = await query('SELECT * FROM storage_accounts WHERE type = $1', ['onedrive']);
+            for (const row of accountsRes.rows) {
+                const config = row.config;
+                const oneDrive = new OneDriveStorageProvider(
+                    row.id,
+                    config.clientId,
+                    config.clientSecret || '',
+                    config.refreshToken,
+                    config.tenantId || 'common'
+                );
+                this.providers.set(`onedrive:${row.id}`, oneDrive);
 
-                if (clientId && refreshToken) {
-                    const oneDrive = new OneDriveStorageProvider(clientId, clientSecret || '', refreshToken, tenantId);
-                    this.providers.set('onedrive', oneDrive);
+                if (row.is_active && providerName === 'onedrive') {
                     this.activeProvider = oneDrive;
-                    console.log('Storage Provider initialized: OneDrive');
-                } else {
-                    console.warn('OneDrive credentials missing, fallback to Local');
-                    this.activeProvider = this.providers.get('local')!;
+                    this.activeAccountId = row.id;
+                    console.log(`Storage Provider initialized: OneDrive Account (${row.name})`);
                 }
-            } else {
+            }
+
+            if (providerName === 'local' || !this.activeAccountId) {
                 this.activeProvider = this.providers.get('local')!;
+                this.activeAccountId = null;
                 console.log('Storage Provider initialized: Local');
             }
         } catch (error) {
             console.error('Failed to init storage manager:', error);
-            // Fallback to local
             this.activeProvider = this.providers.get('local')!;
+        }
+    }
+
+    private async migrateLegacyConfig() {
+        const clientId = await this.getSetting('onedrive_client_id');
+        const refreshToken = await this.getSetting('onedrive_refresh_token');
+
+        if (clientId && refreshToken) {
+            console.log('[StorageManager] Migrating legacy OneDrive config...');
+            const clientSecret = await this.getSetting('onedrive_client_secret') || '';
+            const tenantId = await this.getSetting('onedrive_tenant_id') || 'common';
+
+            // 检查是否已经迁移过（通过 clientId 匹配测试）
+            const existing = await query('SELECT id FROM storage_accounts WHERE config->>\'clientId\' = $1', [clientId]);
+            if (existing.rows.length === 0) {
+                await query(
+                    `INSERT INTO storage_accounts (type, name, config, is_active) 
+                     VALUES ($1, $2, $3, $4)`,
+                    ['onedrive', 'Default Account', JSON.stringify({ clientId, clientSecret, refreshToken, tenantId }), true]
+                );
+                console.log('[StorageManager] Legacy config migrated successfully.');
+            }
+
+            // 清理旧设置（可选，建议保留一段时间以防万一，或者直接标记已迁移）
+            // 这里我们保持原样，init 逻辑会优先检查 storage_accounts
         }
     }
 
@@ -572,6 +617,15 @@ export class StorageManager {
         );
     }
 
+    static async updateAccountToken(accountId: string, refreshToken: string) {
+        await query(
+            `UPDATE storage_accounts 
+             SET config = config || jsonb_build_object('refreshToken', $2::text), updated_at = NOW()
+             WHERE id = $1`,
+            [accountId, refreshToken]
+        );
+    }
+
     getProvider(name?: string): IStorageProvider {
         if (name && this.providers.has(name)) {
             return this.providers.get(name)!;
@@ -579,22 +633,70 @@ export class StorageManager {
         return this.activeProvider;
     }
 
+    getActiveAccountId(): string | null {
+        return this.activeAccountId;
+    }
+
+    async getAccounts() {
+        const res = await query('SELECT id, name, type, is_active FROM storage_accounts ORDER BY created_at ASC');
+        return res.rows;
+    }
+
+    // 添加新的 OneDrive 账户
+    async addOneDriveAccount(name: string, clientId: string, clientSecret: string, refreshToken: string, tenantId: string = 'common') {
+        const res = await query(
+            `INSERT INTO storage_accounts (type, name, config, is_active) 
+             VALUES ($1, $2, $3, $4) RETURNING id`,
+            ['onedrive', name, JSON.stringify({ clientId, clientSecret, refreshToken, tenantId }), false]
+        );
+
+        const newId = res.rows[0].id;
+        // 初始化 Provider
+        const oneDrive = new OneDriveStorageProvider(newId, clientId, clientSecret, refreshToken, tenantId);
+        this.providers.set(`onedrive:${newId}`, oneDrive);
+
+        return newId;
+    }
+
+    // 切换激活账户
+    async switchAccount(accountId: string | 'local') {
+        if (accountId === 'local') {
+            await StorageManager.updateSetting('storage_provider', 'local');
+            await query('UPDATE storage_accounts SET is_active = false');
+        } else {
+            await StorageManager.updateSetting('storage_provider', 'onedrive');
+            await query('UPDATE storage_accounts SET is_active = (id = $1)', [accountId]);
+        }
+
+        // 重新初始化以刷新状态
+        await this.init();
+    }
+
     // 更新 OneDrive 配置并切换
     async updateOneDriveConfig(clientId: string, clientSecret: string, refreshToken: string, tenantId: string = 'common') {
-        await StorageManager.updateSetting('onedrive_client_id', clientId);
-        await StorageManager.updateSetting('onedrive_client_secret', clientSecret);
-        await StorageManager.updateSetting('onedrive_refresh_token', refreshToken);
-        await StorageManager.updateSetting('onedrive_tenant_id', tenantId);
-        await StorageManager.updateSetting('storage_provider', 'onedrive');
-
-        // 重新初始化
+        // 这个旧方法现在用于更新或添加“默认”账户，为了兼容性
+        // 我们改为查找当前激活的账户或添加新账户
+        if (this.activeAccountId && this.activeProvider.name === 'onedrive') {
+            await query(
+                `UPDATE storage_accounts 
+                 SET config = $2, updated_at = NOW()
+                 WHERE id = $1`,
+                [this.activeAccountId, JSON.stringify({ clientId, clientSecret, refreshToken, tenantId })]
+            );
+        } else {
+            await this.addOneDriveAccount('OneDrive', clientId, clientSecret, refreshToken, tenantId);
+            // 自动开启
+            const res = await query('SELECT id FROM storage_accounts WHERE type = $1 ORDER BY created_at DESC LIMIT 1', ['onedrive']);
+            if (res.rows[0]) {
+                await this.switchAccount(res.rows[0].id);
+            }
+        }
         await this.init();
     }
 
     // 切换回本地
     async switchToLocal() {
-        await StorageManager.updateSetting('storage_provider', 'local');
-        await this.init();
+        await this.switchAccount('local');
     }
 }
 

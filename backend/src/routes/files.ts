@@ -12,25 +12,23 @@ const THUMBNAIL_DIR = path.resolve(process.env.THUMBNAIL_DIR || './data/thumbnai
 // 获取文件列表
 router.get('/', async (_req: Request, res: Response) => {
     try {
-        const result = await query(`
-            SELECT 
-                id,
-                name,
-                stored_name,
-                type,
-                mime_type,
-                size,
-                path,
-                thumbnail_path,
-                width,
-                height,
-                source,
-                folder,
-                created_at,
-                updated_at
-            FROM files 
-            ORDER BY created_at DESC
-        `);
+        const { storageManager } = await import('../services/storage.js');
+        const activeAccountId = storageManager.getActiveAccountId();
+        const provider = storageManager.getProvider();
+
+        let queryStr = '';
+        let params: any[] = [];
+
+        if (provider.name === 'local') {
+            // 本地存储模式：只显示 source = 'local' 的文件
+            queryStr = 'SELECT * FROM files WHERE source = \'local\' ORDER BY created_at DESC';
+        } else {
+            // 云盘模式：只显示当前激活账户的文件
+            queryStr = 'SELECT * FROM files WHERE storage_account_id = $1 ORDER BY created_at DESC';
+            params = [activeAccountId];
+        }
+
+        const result = await query(queryStr, params);
 
         const files = result.rows.map(file => ({
             ...file,
@@ -87,18 +85,16 @@ router.get('/:id/preview', async (req: Request, res: Response) => {
 
         const file = result.rows[0];
 
-        // 处理 OneDrive 文件
         if (file.source === 'onedrive') {
             try {
                 const { storageManager } = await import('../services/storage.js');
-                const provider = storageManager.getProvider('onedrive');
-                const url = await provider.getPreviewUrl(file.path); // 使用 path (存储的是 OneDrive Item ID)
-                // 禁止缓存重定向，防止客户端缓存过期的下载链接
+                const provider = storageManager.getProvider(`onedrive:${file.storage_account_id}`);
+                const url = await provider.getPreviewUrl(file.path);
                 res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
                 return res.redirect(url);
             } catch (err) {
                 console.error('获取 OneDrive 预览链接失败:', err);
-                return res.status(500).json({ error: '无法获取文件预览' });
+                return res.status(500).json({ error: '获取预览失败' });
             }
         }
 
@@ -162,7 +158,7 @@ router.get('/:id/download-url', async (req: Request, res: Response) => {
         if (file.source === 'onedrive') {
             try {
                 const { storageManager } = await import('../services/storage.js');
-                const provider = storageManager.getProvider('onedrive');
+                const provider = storageManager.getProvider(`onedrive:${file.storage_account_id}`);
                 const url = await provider.getPreviewUrl(file.path);
                 return res.json({ url });
             } catch (err) {
@@ -203,7 +199,7 @@ router.get('/:id/download', async (req: Request, res: Response) => {
         if (file.source === 'onedrive') {
             try {
                 const { storageManager } = await import('../services/storage.js');
-                const provider = storageManager.getProvider('onedrive');
+                const provider = storageManager.getProvider(`onedrive:${file.storage_account_id}`);
                 const url = await provider.getPreviewUrl(file.path);
                 res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
                 return res.redirect(url);
@@ -286,7 +282,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
         if (file.source === 'onedrive') {
             try {
                 const { storageManager } = await import('../services/storage.js');
-                const provider = storageManager.getProvider('onedrive');
+                const provider = storageManager.getProvider(`onedrive:${file.storage_account_id}`);
                 await provider.deleteFile(file.path);
             } catch (err) {
                 console.error('OneDrive 文件删除失败 (可能已不存在):', err);
@@ -355,7 +351,7 @@ router.post('/batch-delete', async (req: Request, res: Response) => {
             try {
                 if (file.source === 'onedrive') {
                     const { storageManager } = await import('../services/storage.js');
-                    const provider = storageManager.getProvider('onedrive');
+                    const provider = storageManager.getProvider(`onedrive:${file.storage_account_id}`);
                     await provider.deleteFile(file.path);
                 } else {
                     const filePath = file.path || path.join(UPLOAD_DIR, file.stored_name);
