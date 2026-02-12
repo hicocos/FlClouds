@@ -385,12 +385,10 @@ function generateBatchStatusMessage(queue: MediaGroupQueue): string {
 async function processFileUpload(client: TelegramClient, file: FileUploadItem, queue?: MediaGroupQueue): Promise<void> {
     file.status = 'queued';
 
-    if (queue && queue.statusMsgId && queue.chatId) {
-        await safeEditMessage(client, queue.chatId as Api.TypeEntityLike, {
-            message: queue.statusMsgId,
-            text: generateBatchStatusMessage(queue),
-        });
-    }
+    file.status = 'queued';
+
+    // 移除这里的初始状态更新，改为在 processBatchUpload 中统一更新一次
+    // 这样可以确保 downloadQueue 已经包含了所有任务，pending 计数才准确
 
     const attemptUpload = async (): Promise<boolean> => {
         let localFilePath: string | undefined;
@@ -679,7 +677,21 @@ async function processBatchUpload(client: TelegramClient, mediaGroupId: string):
     }
 
     // 使用 Promise.all 并行提交任务到队列
+    // processFileUpload 内部不再 await downloadQueue.add，所以这里会很快完成
     await Promise.all(queue.files.map(file => processFileUpload(client, file, queue)));
+
+    // 所有任务都加入队列后，统一发送一次状态更新
+    // 此时 downloadQueue.getStats() 会返回正确的 pending 数量
+    if (queue.statusMsgId && queue.chatId) {
+        try {
+            await safeEditMessage(client, queue.chatId as Api.TypeEntityLike, {
+                message: queue.statusMsgId,
+                text: generateBatchStatusMessage(queue),
+            });
+        } catch (e) {
+            console.error('🤖 发送批量上传初始队列状态消息失败:', e);
+        }
+    }
 
     // 注意：由于 processFileUpload 现在不等待任务完成就返回，
     // 所以这里的代码会立即执行完。
