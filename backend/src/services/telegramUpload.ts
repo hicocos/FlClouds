@@ -621,24 +621,21 @@ async function processBatchUpload(client: TelegramClient, mediaGroupId: string):
         const stats = downloadQueue.getStats();
         const totalPending = stats.pending + queue.files.length;
 
+        await deleteLastStatusMessage(client, queue.chatId);
+
         if (totalPending >= 9) {
             const now = Date.now();
             if (now - lastSilentNotificationTime > SILENT_NOTIFICATION_COOLDOWN) {
-                await safeReply(firstMessage, {
+                const sMsg = await safeReply(firstMessage, {
                     message: `🤐 **检测到多文件上传，已切换到静默模式**\n\n当前排队任务: ${totalPending} 个\nBot 将在后台继续处理所有文件，请耐心等待。\n\n💡 发送 /tasks 查看实时任务状态`
                 });
+                if (sMsg) {
+                    updateLastStatusMessageId(queue.chatId, sMsg.id);
+                }
                 lastSilentNotificationTime = now;
             }
-            await deleteLastStatusMessage(client, queue.chatId);
-            const statusMsg = await safeReply(firstMessage, {
-                message: generateBatchStatusMessage(queue)
-            });
-            if (statusMsg) {
-                queue.statusMsgId = statusMsg.id;
-                updateLastStatusMessageId(queue.chatId, statusMsg.id);
-            }
+            // In silent mode, we don't set queue.statusMsgId, so no background updates are sent.
         } else {
-            await deleteLastStatusMessage(client, queue.chatId);
             const statusMsg = await safeReply(firstMessage, {
                 message: generateBatchStatusMessage(queue)
             });
@@ -758,16 +755,21 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
         let statusMsg: Api.Message | undefined;
         try {
             const stats = downloadQueue.getStats();
+            await deleteLastStatusMessage(client, message.chatId!);
+
             if (stats.pending >= 9) {
                 const now = Date.now();
                 if (now - lastSilentNotificationTime > SILENT_NOTIFICATION_COOLDOWN) {
-                    await safeReply(message, {
+                    const sMsg = await safeReply(message, {
                         message: `🤐 **检测到多文件上传，已切换到静默模式**\n\n当前排队任务: ${stats.pending} 个\nBot 将在后台继续处理所有文件，请耐心等待。\n\n💡 发送 /tasks 查看实时任务状态`
                     });
+                    if (sMsg) {
+                        updateLastStatusMessageId(message.chatId!, sMsg.id);
+                    }
                     lastSilentNotificationTime = now;
                 }
+                // statusMsg remains undefined, keeping background tasks silent.
             } else {
-                await deleteLastStatusMessage(client, message.chatId!);
                 statusMsg = await safeReply(message, {
                     message: `⏳ 正在下载文件: ${finalFileName}\n${generateProgressBar(0, 1)}\n\n${typeEmoji} ${formatBytes(0)} / ${formatBytes(totalSize)}`
                 }) as Api.Message;
