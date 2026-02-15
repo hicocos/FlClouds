@@ -50,7 +50,7 @@ export const Notification: React.FC<NotificationProps> = ({
                     initial={{ opacity: 0, y: -20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                    className="fixed top-12 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
+                    className="fixed top-12 inset-x-0 z-[100] flex justify-center pointer-events-none px-4"
                 >
                     <div className={cn(
                         "flex items-center gap-3 px-6 py-4 rounded-2xl border shadow-2xl backdrop-blur-xl pointer-events-auto w-max max-w-[90vw]",
