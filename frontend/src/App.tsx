@@ -483,346 +483,349 @@ function App() {
   }
 
   return (
-    <AppLayout onCategoryChange={setCurrentCategory} storageStats={storageStats}>
-      <div className="flex flex-col gap-8 max-w-7xl mx-auto min-h-full">
+    <>
+      <AppLayout onCategoryChange={setCurrentCategory} storageStats={storageStats}>
+        <div className="flex flex-col gap-8 max-w-7xl mx-auto min-h-full">
 
-        {/* Main Content Area */}
-        {currentCategory === "settings" ? (
-          <SettingsPage storageStats={storageStats} />
-        ) : (
-          <>
-            {/* Header Actions */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-3xl font-bold tracking-tight text-foreground">{t("app.title")}</h2>
-                <p className="text-muted-foreground mt-1">{t("app.subtitle")}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative hidden md:block group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                  <input
-                    className="h-10 w-64 rounded-full border border-border bg-background pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm focus:shadow-md"
-                    placeholder={t("app.searchPlaceholder")}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+          {/* Main Content Area */}
+          {currentCategory === "settings" ? (
+            <SettingsPage storageStats={storageStats} />
+          ) : (
+            <>
+              {/* Header Actions */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-bold tracking-tight text-foreground">{t("app.title")}</h2>
+                  <p className="text-muted-foreground mt-1">{t("app.subtitle")}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
-                  onClick={() => { loadFiles(); loadStorageStats(); }}
-                  disabled={loading}
-                >
-                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                </Button>
+                <div className="flex items-center gap-3">
+                  <div className="relative hidden md:block group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <input
+                      className="h-10 w-64 rounded-full border border-border bg-background pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all shadow-sm focus:shadow-md"
+                      placeholder={t("app.searchPlaceholder")}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-full"
+                    onClick={() => { loadFiles(); loadStorageStats(); }}
+                    disabled={loading}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  </Button>
 
-                {/* 多选切换按钮 */}
-                <Button
-                  variant={isSelectionMode ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8 px-3 text-xs flex items-center gap-2"
-                  onClick={() => {
-                    setIsSelectionMode(!isSelectionMode);
+                  {/* 多选切换按钮 */}
+                  <Button
+                    variant={isSelectionMode ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-8 px-3 text-xs flex items-center gap-2"
+                    onClick={() => {
+                      setIsSelectionMode(!isSelectionMode);
+                      setSelectedFileIds([]);
+                      setSelectedFolderNames([]);
+                    }}
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                    <span>多选</span>
+                  </Button>
+
+                  {/* 排序按钮 */}
+                  <div className="bg-muted/50 rounded-lg p-1 flex items-center gap-1">
+                    <Button
+                      variant={sortConfig.key === 'name' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => setSortConfig(current => ({
+                        key: 'name',
+                        direction: current.key === 'name' && current.direction === 'asc' ? 'desc' : 'asc'
+                      }))}
+                    >
+                      名称 {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </Button>
+                    <Button
+                      variant={sortConfig.key === 'date' ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => setSortConfig(current => ({
+                        key: 'date',
+                        direction: current.key === 'date' && current.direction === 'asc' ? 'desc' : 'asc'
+                      }))}
+                    >
+                      日期 {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    </Button>
+                  </div>
+
+                  <div className="bg-muted/50 rounded-lg">
+                    <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Upload Zone */}
+              <UploadZone
+                onDrop={handleDrop}
+                uploading={isUploading}
+                uploadProgress={totalUploadProgress}
+              />
+
+              <div className="sticky top-0 z-30 -mx-4 px-4 pt-2">
+                <BulkActionToolbar
+                  isVisible={isSelectionMode}
+                  selectedFilesCount={selectedFileIds.length}
+                  selectedFoldersCount={selectedFolderNames.length}
+                  onCancel={() => {
+                    setIsSelectionMode(false);
                     setSelectedFileIds([]);
                     setSelectedFolderNames([]);
                   }}
-                >
-                  <CheckSquare className="h-4 w-4" />
-                  <span>多选</span>
-                </Button>
-
-                {/* 排序按钮 */}
-                <div className="bg-muted/50 rounded-lg p-1 flex items-center gap-1">
-                  <Button
-                    variant={sortConfig.key === 'name' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="h-8 px-2 text-xs"
-                    onClick={() => setSortConfig(current => ({
-                      key: 'name',
-                      direction: current.key === 'name' && current.direction === 'asc' ? 'desc' : 'asc'
-                    }))}
-                  >
-                    名称 {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </Button>
-                  <Button
-                    variant={sortConfig.key === 'date' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="h-8 px-2 text-xs"
-                    onClick={() => setSortConfig(current => ({
-                      key: 'date',
-                      direction: current.key === 'date' && current.direction === 'asc' ? 'desc' : 'asc'
-                    }))}
-                  >
-                    日期 {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                  </Button>
-                </div>
-
-                <div className="bg-muted/50 rounded-lg">
-                  <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-                </div>
-              </div>
-            </div>
-
-            {/* Upload Zone */}
-            <UploadZone
-              onDrop={handleDrop}
-              uploading={isUploading}
-              uploadProgress={totalUploadProgress}
-            />
-
-            <div className="sticky top-0 z-30 -mx-4 px-4 pt-2">
-              <BulkActionToolbar
-                isVisible={isSelectionMode}
-                selectedFilesCount={selectedFileIds.length}
-                selectedFoldersCount={selectedFolderNames.length}
-                onCancel={() => {
-                  setIsSelectionMode(false);
-                  setSelectedFileIds([]);
-                  setSelectedFolderNames([]);
-                }}
-                onDelete={handleBatchDelete}
-                onShare={handleShare}
-              />
-            </div>
-
-            {/* Files View */}
-            <div className="flex-1 flex flex-col mt-8">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  {currentFolder ? (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full"
-                        onClick={() => setCurrentFolder(null)}
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                      </Button>
-                      <span>{currentFolder}</span>
-                      <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                        {displayFiles.length} 个文件
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      {t("app.recent")}
-                      <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                        {folders.length > 0 ? `${folders.length} 个文件夹, ` : ''}{looseFiles.length} 个文件
-                      </span>
-                    </>
-                  )}
-                </h3>
-
+                  onDelete={handleBatchDelete}
+                  onShare={handleShare}
+                />
               </div>
 
-              {loading ? (
-                <div className="flex items-center justify-center py-20">
-                  <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : filteredFiles.length === 0 ? (
-                <EmptyState />
-              ) : currentFolder ? (
-                /* 文件夹内容视图 */
-                <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5" : "flex flex-col gap-2"}>
-                  <AnimatePresence mode="wait">
-                    {displayFiles.map((file) => (
-                      <motion.div
-                        key={file.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        {viewMode === "grid" ? (
-                          <FileCard
-                            file={file}
-                            onPreview={() => setSelectedFile(file)}
-                            onDelete={() => verifyDelete(file)}
-                            isSelectionMode={isSelectionMode}
-                            isSelected={selectedFileIds.includes(file.id)}
-                            onSelect={toggleFileSelection}
-                          />
-                        ) : (
-                          <div
-                            className={`flex items-center gap-4 p-3 rounded-xl border ${selectedFileIds.includes(file.id) ? 'border-primary bg-primary/5' : 'border-border bg-card'} shadow-sm cursor-pointer group hover:bg-muted/50 transition-colors`}
-                            onClick={() => isSelectionMode ? toggleFileSelection(file.id) : setSelectedFile(file)}
-                          >
-                            {isSelectionMode && (
-                              <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${selectedFileIds.includes(file.id) ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                                {selectedFileIds.includes(file.id) && <div className="h-2 w-2 bg-white rounded-full" />}
-                              </div>
-                            )}
-                            <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:bg-background transition-colors">
-                              {file.type.slice(0, 3)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium truncate group-hover:text-primary transition-colors">{file.name}</h4>
-                              <div className="flex items-center gap-2">
-                                <p className="text-xs text-muted-foreground">{file.date}</p>
-                                <span className="text-[10px] text-muted-foreground/60">•</span>
-                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
-                                  {file.source === 'onedrive' ? <Cloud className="h-2.5 w-2.5" /> : (file.source === 'google_drive' ? <Database className="h-2.5 w-2.5" /> : (file.source === 'aliyun_oss' ? <Database className="h-2.5 w-2.5" /> : (file.source === 's3' ? <Package className="h-2.5 w-2.5" /> : (file.source === 'webdav' ? <Network className="h-2.5 w-2.5" /> : <HardDrive className="h-2.5 w-2.5" />))))}
-                                  <span>{file.source === 'onedrive' ? 'OneDrive' : (file.source === 'google_drive' ? 'Google Drive' : (file.source === 'aliyun_oss' ? 'Aliyun OSS' : (file.source === 's3' ? 'S3' : (file.source === 'webdav' ? 'WebDAV' : 'Local'))))}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-sm font-medium tabular-nums text-muted-foreground px-4">{file.size}</div>
-                            <div>
-                              <FileMenu onDelete={() => verifyDelete(file)} />
-                            </div>
-                          </div>
-                        )}
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              ) : (
-                /* 主视图：文件夹 + 散文件 */
-                <div className="space-y-8">
-                  {/* 文件夹区域 */}
-                  {folders.length > 0 && (
-                    <div className="space-y-4">
-                      <div
-                        className={`flex items-center gap-2 p-2 rounded-lg -ml-2 transition-colors w-full ${showFolderToggle ? 'cursor-pointer hover:bg-muted/50' : ''}`}
-                        onClick={() => showFolderToggle && setIsFoldersExpanded(!isFoldersExpanded)}
-                      >
-                        {showFolderToggle && (
-                          <div className="p-1 rounded-md hover:bg-muted transition-colors">
-                            {isFoldersExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                        )}
-                        <h4 className={`text-sm font-medium text-muted-foreground flex items-center gap-2 select-none ${!showFolderToggle ? 'pl-2' : ''}`}>
-                          📁 文件夹
-                          <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
-                            {folders.length}
-                          </span>
-                        </h4>
-                      </div>
+              {/* Files View */}
+              <div className="flex-1 flex flex-col mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    {currentFolder ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => setCurrentFolder(null)}
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                        <span>{currentFolder}</span>
+                        <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                          {displayFiles.length} 个文件
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {t("app.recent")}
+                        <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                          {folders.length > 0 ? `${folders.length} 个文件夹, ` : ''}{looseFiles.length} 个文件
+                        </span>
+                      </>
+                    )}
+                  </h3>
 
-                      <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 pb-4" : "flex flex-col gap-2 pb-4"}>
-                        <AnimatePresence mode="popLayout">
-                          {visibleFolders.map((folder) => (
-                            <motion.div
-                              key={folder.name}
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.9 }}
-                              transition={{ duration: 0.2 }}
-                              layout
-                            >
-                              <FolderCard
-                                folder={folder}
-                                onClick={() => setCurrentFolder(folder.name)}
-                                isSelectionMode={isSelectionMode}
-                                isSelected={selectedFolderNames.includes(folder.name)}
-                                onSelect={toggleFolderSelection}
-                              />
-                            </motion.div>
-                          ))}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                  )}
+                </div>
 
-                  {/* 散文件区域 */}
-                  {looseFiles.length > 0 && (
-                    <div>
-                      {folders.length > 0 && (
-                        <h4 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
-                          📄 文件
-                        </h4>
-                      )}
-                      <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5" : "flex flex-col gap-2"}>
-                        <AnimatePresence mode="wait">
-                          {looseFiles.map((file) => (
-                            <motion.div
-                              key={file.id}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              transition={{ duration: 0.15 }}
+                {loading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : filteredFiles.length === 0 ? (
+                  <EmptyState />
+                ) : currentFolder ? (
+                  /* 文件夹内容视图 */
+                  <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5" : "flex flex-col gap-2"}>
+                    <AnimatePresence mode="wait">
+                      {displayFiles.map((file) => (
+                        <motion.div
+                          key={file.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.15 }}
+                        >
+                          {viewMode === "grid" ? (
+                            <FileCard
+                              file={file}
+                              onPreview={() => setSelectedFile(file)}
+                              onDelete={() => verifyDelete(file)}
+                              isSelectionMode={isSelectionMode}
+                              isSelected={selectedFileIds.includes(file.id)}
+                              onSelect={toggleFileSelection}
+                            />
+                          ) : (
+                            <div
+                              className={`flex items-center gap-4 p-3 rounded-xl border ${selectedFileIds.includes(file.id) ? 'border-primary bg-primary/5' : 'border-border bg-card'} shadow-sm cursor-pointer group hover:bg-muted/50 transition-colors`}
+                              onClick={() => isSelectionMode ? toggleFileSelection(file.id) : setSelectedFile(file)}
                             >
-                              {viewMode === "grid" ? (
-                                <FileCard
-                                  file={file}
-                                  onPreview={() => setSelectedFile(file)}
-                                  onDelete={() => verifyDelete(file)}
-                                  isSelectionMode={isSelectionMode}
-                                  isSelected={selectedFileIds.includes(file.id)}
-                                  onSelect={toggleFileSelection}
-                                />
-                              ) : (
-                                <div
-                                  className={`flex items-center gap-4 p-3 rounded-xl border ${selectedFileIds.includes(file.id) ? 'border-primary bg-primary/5' : 'border-border bg-card'} shadow-sm cursor-pointer group hover:bg-muted/50 transition-colors`}
-                                  onClick={() => isSelectionMode ? toggleFileSelection(file.id) : setSelectedFile(file)}
-                                >
-                                  {isSelectionMode && (
-                                    <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${selectedFileIds.includes(file.id) ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
-                                      {selectedFileIds.includes(file.id) && <div className="h-2 w-2 bg-white rounded-full" />}
-                                    </div>
-                                  )}
-                                  <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:bg-background transition-colors">
-                                    {file.type.slice(0, 3)}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-medium truncate group-hover:text-primary transition-colors">{file.name}</h4>
-                                    <div className="flex items-center gap-2">
-                                      <p className="text-xs text-muted-foreground">{file.date}</p>
-                                      <span className="text-[10px] text-muted-foreground/60">•</span>
-                                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
-                                        {file.source === 'onedrive' ? <Cloud className="h-2.5 w-2.5" /> : (file.source === 'google_drive' ? <Database className="h-2.5 w-2.5" /> : (file.source === 'aliyun_oss' ? <Database className="h-2.5 w-2.5" /> : (file.source === 's3' ? <Package className="h-2.5 w-2.5" /> : (file.source === 'webdav' ? <Network className="h-2.5 w-2.5" /> : <HardDrive className="h-2.5 w-2.5" />))))}
-                                        <span>{file.source === 'onedrive' ? 'OneDrive' : (file.source === 'google_drive' ? 'Google Drive' : (file.source === 'aliyun_oss' ? 'Aliyun OSS' : (file.source === 's3' ? 'S3' : (file.source === 'webdav' ? 'WebDAV' : 'Local'))))}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="text-sm font-medium tabular-nums text-muted-foreground px-4">{file.size}</div>
-                                  <div>
-                                    <FileMenu onDelete={() => verifyDelete(file)} />
-                                  </div>
+                              {isSelectionMode && (
+                                <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${selectedFileIds.includes(file.id) ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                                  {selectedFileIds.includes(file.id) && <div className="h-2 w-2 bg-white rounded-full" />}
                                 </div>
                               )}
-                            </motion.div>
-                          ))}
-                        </AnimatePresence>
+                              <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:bg-background transition-colors">
+                                {file.type.slice(0, 3)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium truncate group-hover:text-primary transition-colors">{file.name}</h4>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-xs text-muted-foreground">{file.date}</p>
+                                  <span className="text-[10px] text-muted-foreground/60">•</span>
+                                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                                    {file.source === 'onedrive' ? <Cloud className="h-2.5 w-2.5" /> : (file.source === 'google_drive' ? <Database className="h-2.5 w-2.5" /> : (file.source === 'aliyun_oss' ? <Database className="h-2.5 w-2.5" /> : (file.source === 's3' ? <Package className="h-2.5 w-2.5" /> : (file.source === 'webdav' ? <Network className="h-2.5 w-2.5" /> : <HardDrive className="h-2.5 w-2.5" />))))}
+                                    <span>{file.source === 'onedrive' ? 'OneDrive' : (file.source === 'google_drive' ? 'Google Drive' : (file.source === 'aliyun_oss' ? 'Aliyun OSS' : (file.source === 's3' ? 'S3' : (file.source === 'webdav' ? 'WebDAV' : 'Local'))))}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-sm font-medium tabular-nums text-muted-foreground px-4">{file.size}</div>
+                              <div>
+                                <FileMenu onDelete={() => verifyDelete(file)} />
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  /* 主视图：文件夹 + 散文件 */
+                  <div className="space-y-8">
+                    {/* 文件夹区域 */}
+                    {folders.length > 0 && (
+                      <div className="space-y-4">
+                        <div
+                          className={`flex items-center gap-2 p-2 rounded-lg -ml-2 transition-colors w-full ${showFolderToggle ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                          onClick={() => showFolderToggle && setIsFoldersExpanded(!isFoldersExpanded)}
+                        >
+                          {showFolderToggle && (
+                            <div className="p-1 rounded-md hover:bg-muted transition-colors">
+                              {isFoldersExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          )}
+                          <h4 className={`text-sm font-medium text-muted-foreground flex items-center gap-2 select-none ${!showFolderToggle ? 'pl-2' : ''}`}>
+                            📁 文件夹
+                            <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                              {folders.length}
+                            </span>
+                          </h4>
+                        </div>
+
+                        <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 pb-4" : "flex flex-col gap-2 pb-4"}>
+                          <AnimatePresence mode="popLayout">
+                            {visibleFolders.map((folder) => (
+                              <motion.div
+                                key={folder.name}
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ duration: 0.2 }}
+                                layout
+                              >
+                                <FolderCard
+                                  folder={folder}
+                                  onClick={() => setCurrentFolder(folder.name)}
+                                  isSelectionMode={isSelectionMode}
+                                  isSelected={selectedFolderNames.includes(folder.name)}
+                                  onSelect={toggleFolderSelection}
+                                />
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+                    )}
 
-      <PreviewModal file={selectedFile} onClose={() => setSelectedFile(null)} />
+                    {/* 散文件区域 */}
+                    {looseFiles.length > 0 && (
+                      <div>
+                        {folders.length > 0 && (
+                          <h4 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
+                            📄 文件
+                          </h4>
+                        )}
+                        <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5" : "flex flex-col gap-2"}>
+                          <AnimatePresence mode="wait">
+                            {looseFiles.map((file) => (
+                              <motion.div
+                                key={file.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                              >
+                                {viewMode === "grid" ? (
+                                  <FileCard
+                                    file={file}
+                                    onPreview={() => setSelectedFile(file)}
+                                    onDelete={() => verifyDelete(file)}
+                                    isSelectionMode={isSelectionMode}
+                                    isSelected={selectedFileIds.includes(file.id)}
+                                    onSelect={toggleFileSelection}
+                                  />
+                                ) : (
+                                  <div
+                                    className={`flex items-center gap-4 p-3 rounded-xl border ${selectedFileIds.includes(file.id) ? 'border-primary bg-primary/5' : 'border-border bg-card'} shadow-sm cursor-pointer group hover:bg-muted/50 transition-colors`}
+                                    onClick={() => isSelectionMode ? toggleFileSelection(file.id) : setSelectedFile(file)}
+                                  >
+                                    {isSelectionMode && (
+                                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${selectedFileIds.includes(file.id) ? 'bg-primary border-primary' : 'border-muted-foreground/30'}`}>
+                                        {selectedFileIds.includes(file.id) && <div className="h-2 w-2 bg-white rounded-full" />}
+                                      </div>
+                                    )}
+                                    <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:bg-background transition-colors">
+                                      {file.type.slice(0, 3)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-medium truncate group-hover:text-primary transition-colors">{file.name}</h4>
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-xs text-muted-foreground">{file.date}</p>
+                                        <span className="text-[10px] text-muted-foreground/60">•</span>
+                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                                          {file.source === 'onedrive' ? <Cloud className="h-2.5 w-2.5" /> : (file.source === 'google_drive' ? <Database className="h-2.5 w-2.5" /> : (file.source === 'aliyun_oss' ? <Database className="h-2.5 w-2.5" /> : (file.source === 's3' ? <Package className="h-2.5 w-2.5" /> : (file.source === 'webdav' ? <Network className="h-2.5 w-2.5" /> : <HardDrive className="h-2.5 w-2.5" />))))}
+                                          <span>{file.source === 'onedrive' ? 'OneDrive' : (file.source === 'google_drive' ? 'Google Drive' : (file.source === 'aliyun_oss' ? 'Aliyun OSS' : (file.source === 's3' ? 'S3' : (file.source === 'webdav' ? 'WebDAV' : 'Local'))))}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-sm font-medium tabular-nums text-muted-foreground px-4">{file.size}</div>
+                                    <div>
+                                      <FileMenu onDelete={() => verifyDelete(file)} />
+                                    </div>
+                                  </div>
+                                )}
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
-      {/* 这里的 isOpen 逻辑是：如果有正在上传的，或者用户没点关闭（且有内容），就显示？ */}
-      {/* 现在的逻辑是：多文件触发 setIsQueueModalOpen(true)，关闭则 false。 */}
-      <UploadQueueModal
-        isOpen={isQueueModalOpen}
-        onClose={handleCloseQueue}
-        items={uploadQueue}
-      />
+        <PreviewModal file={selectedFile} onClose={() => setSelectedFile(null)} />
 
-      <DeleteAlert
-        isOpen={!!deletingFile}
-        onClose={() => setDeletingFile(null)}
-        onConfirm={handleConfirmDelete}
-        fileName={deletingFile?.name}
-      />
+        {/* 这里的 isOpen 逻辑是：如果有正在上传的，或者用户没点关闭（且有内容），就显示？ */}
+        {/* 现在的逻辑是：多文件触发 setIsQueueModalOpen(true)，关闭则 false。 */}
+        <UploadQueueModal
+          isOpen={isQueueModalOpen}
+          onClose={handleCloseQueue}
+          items={uploadQueue}
+        />
 
-      <FolderPromptModal
-        isOpen={isFolderModalOpen}
-        onClose={() => setIsFolderModalOpen(false)}
-        onConfirm={(folderName) => startUpload(pendingFiles, folderName)}
-        onCancel={() => startUpload(pendingFiles)}
-      />
+        <DeleteAlert
+          isOpen={!!deletingFile}
+          onClose={() => setDeletingFile(null)}
+          onConfirm={handleConfirmDelete}
+          fileName={deletingFile?.name}
+        />
+
+        <FolderPromptModal
+          isOpen={isFolderModalOpen}
+          onClose={() => setIsFolderModalOpen(false)}
+          onConfirm={(folderName) => startUpload(pendingFiles, folderName)}
+          onCancel={() => startUpload(pendingFiles)}
+        />
+
+      </AppLayout>
 
       <Notification
         show={notification.show}
@@ -830,7 +833,7 @@ function App() {
         type={notification.type}
         onClose={() => setNotification(prev => ({ ...prev, show: false }))}
       />
-    </AppLayout >
+    </>
   );
 }
 
