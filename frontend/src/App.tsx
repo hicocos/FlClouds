@@ -4,7 +4,7 @@ import { Button } from "./components/ui/Button";
 import { FileCard } from "./components/ui/FileCard";
 import { FolderCard, type FolderData } from "./components/ui/FolderCard";
 import { UploadZone } from "./components/ui/UploadZone";
-import { Search, RefreshCw, ArrowLeft, ChevronDown, ChevronRight, CheckSquare } from "lucide-react";
+import { Search, RefreshCw, ArrowLeft, ChevronDown, ChevronRight, CheckSquare, Cloud, HardDrive, Database } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { PreviewModal } from "./components/ui/PreviewModal";
 import { BulkActionToolbar } from "./components/ui/BulkActionToolbar";
@@ -619,7 +619,14 @@ function App() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="font-medium truncate group-hover:text-primary transition-colors">{file.name}</h4>
-                              <p className="text-xs text-muted-foreground">{file.date}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-muted-foreground">{file.date}</p>
+                                <span className="text-[10px] text-muted-foreground/60">•</span>
+                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                                  {file.source === 'onedrive' ? <Cloud className="h-2.5 w-2.5" /> : (file.source === 'aliyun_oss' ? <Database className="h-2.5 w-2.5" /> : <HardDrive className="h-2.5 w-2.5" />)}
+                                  <span>{file.source === 'onedrive' ? 'OneDrive' : (file.source === 'aliyun_oss' ? 'Aliyun OSS' : 'Local')}</span>
+                                </div>
+                              </div>
                             </div>
                             <div className="text-sm font-medium tabular-nums text-muted-foreground px-4">{file.size}</div>
                             <div>
@@ -725,7 +732,14 @@ function App() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-medium truncate group-hover:text-primary transition-colors">{file.name}</h4>
-                                    <p className="text-xs text-muted-foreground">{file.date}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-xs text-muted-foreground">{file.date}</p>
+                                      <span className="text-[10px] text-muted-foreground/60">•</span>
+                                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                                        {file.source === 'onedrive' ? <Cloud className="h-2.5 w-2.5" /> : (file.source === 'aliyun_oss' ? <Database className="h-2.5 w-2.5" /> : <HardDrive className="h-2.5 w-2.5" />)}
+                                        <span>{file.source === 'onedrive' ? 'OneDrive' : (file.source === 'aliyun_oss' ? 'Aliyun OSS' : 'Local')}</span>
+                                      </div>
+                                    </div>
                                   </div>
                                   <div className="text-sm font-medium tabular-nums text-muted-foreground px-4">{file.size}</div>
                                   <div>

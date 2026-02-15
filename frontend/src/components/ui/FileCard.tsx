@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Download, Eye, FileText, Image as ImageIcon, Music, Video, Trash2, Cloud, HardDrive } from "lucide-react";
+import { Download, Eye, FileText, Image as ImageIcon, Music, Video, Trash2, Cloud, HardDrive, Database } from "lucide-react";
 import { Button } from "./Button";
 import { fileApi, type FileData } from "../../services/api";
 
@@ -47,8 +47,18 @@ export const FileCard = ({
     const thumbnailSrc = isGif ? file.previewUrl : (file.thumbnailUrl || (file.type === 'image' ? file.previewUrl : undefined));
 
     // 存储图标组件
-    const SourceIcon = file.source === 'onedrive' ? Cloud : HardDrive;
-    const sourceLabel = file.source === 'onedrive' ? 'OneDrive' : 'Local';
+    const getSourceInfo = (source?: string) => {
+        switch (source) {
+            case 'onedrive':
+                return { Icon: Cloud, label: 'OneDrive' };
+            case 'aliyun_oss':
+                return { Icon: Database, label: 'Aliyun OSS' };
+            default:
+                return { Icon: HardDrive, label: 'Local' };
+        }
+    };
+
+    const { Icon: SourceIcon, label: sourceLabel } = getSourceInfo(file.source);
 
     const handleCardClick = () => {
         if (isSelectionMode) {
