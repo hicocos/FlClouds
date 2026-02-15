@@ -8,6 +8,7 @@
         "start": "node dist/index.js"
     },
     "dependencies": {
+        "ali-oss": "^6.23.0",
         "axios": "^1.13.4",
         "check-disk-space": "^3.4.0",
         "cors": "^2.8.5",

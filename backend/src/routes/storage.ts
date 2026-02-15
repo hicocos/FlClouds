@@ -273,6 +273,25 @@ router.put('/config/onedrive', requireAuth, async (req: Request, res: Response) 
     }
 });
 
+// 添加 Aliyun OSS 配置
+router.post('/config/aliyun-oss', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const { name, region, accessKeyId, accessKeySecret, bucket } = req.body;
+
+        if (!name || !region || !accessKeyId || !accessKeySecret || !bucket) {
+            return res.status(400).json({ error: '缺少必要参数' });
+        }
+
+        const { storageManager } = await import('../services/storage.js');
+        const accountId = await storageManager.addAliyunOSSAccount(name, region, accessKeyId, accessKeySecret, bucket);
+
+        res.json({ success: true, message: 'Aliyun OSS 账户已添加', accountId });
+    } catch (error) {
+        console.error('添加 Aliyun OSS 配置失败:', error);
+        res.status(500).json({ error: '添加 Aliyun OSS 配置失败' });
+    }
+});
+
 // 切换存储提供商或具体账户
 router.post('/switch', requireAuth, async (req: Request, res: Response) => {
     try {
@@ -282,19 +301,19 @@ router.post('/switch', requireAuth, async (req: Request, res: Response) => {
         if (provider === 'local') {
             await storageManager.switchToLocal();
             return res.json({ success: true, message: '已切换到本地存储' });
-        } else if (provider === 'onedrive') {
+        } else if (provider === 'onedrive' || provider === 'aliyun_oss') {
             if (accountId) {
                 await storageManager.switchAccount(accountId);
-                return res.json({ success: true, message: '已切换 OneDrive 账户' });
+                return res.json({ success: true, message: `已切换 ${provider} 账户` });
             } else {
-                // 如果没有指定 accountId，尝试切换到最后一个激活的或第一个 OneDrive 账户
+                // 如果没有指定 accountId，尝试切换到最后一个激活的或第一个该类型的账户
                 const accounts = await storageManager.getAccounts();
-                const onedriveAccount = accounts.find(a => a.type === 'onedrive');
-                if (!onedriveAccount) {
-                    return res.status(400).json({ error: '未配置任何 OneDrive 账户' });
+                const account = accounts.find(a => a.type === provider);
+                if (!account) {
+                    return res.status(400).json({ error: `未配置任何 ${provider} 账户` });
                 }
-                await storageManager.switchAccount(onedriveAccount.id);
-                return res.json({ success: true, message: '已切换到 OneDrive' });
+                await storageManager.switchAccount(account.id);
+                return res.json({ success: true, message: `已切换到 ${provider}` });
             }
         } else {
             return res.status(400).json({ error: '无效的存储提供商' });
@@ -335,16 +354,16 @@ router.delete('/accounts/:id', requireAuth, async (req: Request, res: Response) 
         }
 
         const accountName = accountRes.rows[0].name;
+        const accountType = accountRes.rows[0].type;
 
-        // 删除该账户关联的文件记录（可选，也可以保留文件记录但清除 storage_account_id）
-        // 这里选择保留文件记录，但清除关联，使其成为"孤立"记录
+        // 删除该账户关联的文件记录
         await query('UPDATE files SET storage_account_id = NULL WHERE storage_account_id = $1', [id]);
 
         // 删除账户
         await query('DELETE FROM storage_accounts WHERE id = $1', [id]);
 
         // 从内存中移除 provider
-        storageManager.removeProvider(`onedrive:${id}`);
+        storageManager.removeProvider(`${accountType}:${id}`);
 
         console.log(`[Storage] Account deleted: ${accountName} (${id})`);
         res.json({ success: true, message: `已删除账户: ${accountName}` });

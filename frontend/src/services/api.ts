@@ -351,8 +351,23 @@ class FileAPI {
         return response.json();
     }
 
+    // 添加 Aliyun OSS 账户
+    async addAliyunOSSAccount(name: string, region: string, accessKeyId: string, accessKeySecret: string, bucket: string): Promise<{ success: boolean; message: string; accountId: string }> {
+        const response = await fetch(`${API_BASE}/api/storage/config/aliyun-oss`, {
+            method: 'POST',
+            headers: getHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ name, region, accessKeyId, accessKeySecret, bucket }),
+        });
+        if (response.status === 401) throw new Error('UNAUTHORIZED');
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '添加 Aliyun OSS 账户失败');
+        }
+        return response.json();
+    }
+
     // 切换存储提供商或账户
-    async switchStorageProvider(provider: 'local' | 'onedrive', accountId?: string): Promise<{ success: boolean; message: string }> {
+    async switchStorageProvider(provider: 'local' | 'onedrive' | 'aliyun_oss', accountId?: string): Promise<{ success: boolean; message: string }> {
         const response = await fetch(`${API_BASE}/api/storage/switch`, {
             method: 'POST',
             headers: getHeaders({ 'Content-Type': 'application/json' }),

@@ -1,7 +1,7 @@
-
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import OSS from 'ali-oss';
 import { query } from '../db/index.js';
 
 // 接口定义
@@ -103,6 +103,80 @@ export class LocalStorageProvider implements IStorageProvider {
         // 本地存储暂不支持生成外部访问链接，除非我们自己实现一个分享页面
         // 这里返回错误提示
         return { link: '', error: '本地存储暂不支持生成分享链接，请使用 OneDrive 存储。' };
+    }
+}
+
+// Aliyun OSS 存储实现
+export class AliyunOSSStorageProvider implements IStorageProvider {
+    name = 'aliyun_oss';
+    private client: any;
+
+    constructor(
+        public id: string,
+        region: string,
+        accessKeyId: string,
+        accessKeySecret: string,
+        bucket: string
+    ) {
+        this.client = new OSS({
+            region: region,
+            accessKeyId: accessKeyId,
+            accessKeySecret: accessKeySecret,
+            bucket: bucket,
+            secure: true
+        });
+    }
+
+    async saveFile(tempPath: string, fileName: string): Promise<string> {
+        try {
+            const result = await this.client.put(fileName, tempPath);
+            console.log('[AliyunOSS] Upload successful:', result.name);
+            return result.name;
+        } catch (error: any) {
+            console.error('[AliyunOSS] Upload failed:', error.message);
+            throw new Error(`Aliyun OSS upload failed: ${error.message}`);
+        }
+    }
+
+    async getFileStream(storedPath: string): Promise<NodeJS.ReadableStream> {
+        try {
+            const result = await this.client.getStream(storedPath);
+            return result.stream;
+        } catch (error: any) {
+            console.error('[AliyunOSS] Get stream failed:', error.message);
+            throw new Error(`Aliyun OSS get stream failed: ${error.message}`);
+        }
+    }
+
+    async getPreviewUrl(storedPath: string): Promise<string> {
+        try {
+            // 生成带签名的 URL，有效期 1 小时
+            const url = this.client.signatureUrl(storedPath, { expires: 3600 });
+            return url;
+        } catch (error: any) {
+            console.error('[AliyunOSS] Get preview URL failed:', error.message);
+            return '';
+        }
+    }
+
+    async deleteFile(storedPath: string): Promise<void> {
+        try {
+            await this.client.delete(storedPath);
+            console.log('[AliyunOSS] Delete successful:', storedPath);
+        } catch (error: any) {
+            console.error('[AliyunOSS] Delete failed:', error.message);
+            throw new Error(`Aliyun OSS delete failed: ${error.message}`);
+        }
+    }
+
+    async getFileSize(storedPath: string): Promise<number> {
+        try {
+            const result = await this.client.head(storedPath);
+            return parseInt(result.meta['content-length'] || result.res.headers['content-length'] || '0');
+        } catch (error: any) {
+            console.error('[AliyunOSS] Get file size failed:', error.message);
+            return 0;
+        }
     }
 }
 
@@ -646,30 +720,44 @@ export class StorageManager {
 
             console.log(`[StorageManager] Active provider from settings: ${providerName}`);
 
-            // 3. 加载所有 OneDrive 账户
-            const accountsRes = await query('SELECT * FROM storage_accounts WHERE type = $1', ['onedrive']);
+            // 3. 加载所有存储账户
+            const accountsRes = await query('SELECT * FROM storage_accounts');
             // 获取全局 Secret 作为回退（兼容旧版本或用户未特定输入的情况）
             const globalSecretRes = await query("SELECT value FROM system_settings WHERE key = 'onedrive_client_secret'");
             const globalSecret = globalSecretRes.rows[0]?.value || '';
 
             for (const row of accountsRes.rows) {
                 const config = row.config;
-                const oneDrive = new OneDriveStorageProvider(
-                    row.id,
-                    config.clientId,
-                    config.clientSecret || globalSecret || '',
-                    config.refreshToken,
-                    config.tenantId || 'common'
-                );
-                this.providers.set(`onedrive:${row.id}`, oneDrive);
+                let provider: IStorageProvider | null = null;
 
-                if (row.is_active && providerName === 'onedrive') {
-                    this.activeProvider = oneDrive;
+                if (row.type === 'onedrive') {
+                    provider = new OneDriveStorageProvider(
+                        row.id,
+                        config.clientId,
+                        config.clientSecret || globalSecret || '',
+                        config.refreshToken,
+                        config.tenantId || 'common'
+                    );
+                    this.providers.set(`onedrive:${row.id}`, provider);
+                } else if (row.type === 'aliyun_oss') {
+                    provider = new AliyunOSSStorageProvider(
+                        row.id,
+                        config.region,
+                        config.accessKeyId,
+                        config.accessKeySecret,
+                        config.bucket
+                    );
+                    this.providers.set(`aliyun_oss:${row.id}`, provider);
+                }
+
+                if (provider && row.is_active) {
+                    this.activeProvider = provider;
                     this.activeAccountId = row.id;
-                    console.log(`Storage Provider initialized: OneDrive Account (${row.name})`);
+                    console.log(`Storage Provider initialized: ${row.type} Account (${row.name})`);
                 }
             }
 
+            // 如果没有激活的云存储账户，或者激活的是local，则使用local
             if (providerName === 'local' || !this.activeAccountId) {
                 this.activeProvider = this.providers.get('local')!;
                 this.activeAccountId = null;
@@ -799,12 +887,31 @@ export class StorageManager {
             await StorageManager.updateSetting('active_storage_provider', 'local');
             await query('UPDATE storage_accounts SET is_active = false');
         } else {
-            await StorageManager.updateSetting('active_storage_provider', 'onedrive');
+            const accRes = await query('SELECT type FROM storage_accounts WHERE id = $1', [accountId]);
+            const type = accRes.rows[0]?.type || 'local';
+            await StorageManager.updateSetting('active_storage_provider', type);
             await query('UPDATE storage_accounts SET is_active = (id = $1)', [accountId]);
         }
 
         // 重新初始化以刷新状态
         await this.init();
+    }
+
+    async addAliyunOSSAccount(name: string, region: string, accessKeyId: string, accessKeySecret: string, bucket: string) {
+        const config = JSON.stringify({ region, accessKeyId, accessKeySecret, bucket });
+
+        const res = await query(
+            `INSERT INTO storage_accounts (type, name, config, is_active) 
+             VALUES ($1, $2, $3, $4) RETURNING id`,
+            ['aliyun_oss', name, config, false]
+        );
+        const targetId = res.rows[0].id;
+        console.log(`[StorageManager] Added new Aliyun OSS account: ${targetId}`);
+
+        const oss = new AliyunOSSStorageProvider(targetId, region, accessKeyId, accessKeySecret, bucket);
+        this.providers.set(`aliyun_oss:${targetId}`, oss);
+
+        return targetId;
     }
 
     async updateOneDriveConfig(clientId: string, clientSecret: string, refreshToken: string, tenantId: string = 'common', name?: string) {
