@@ -16,7 +16,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     minDate = new Date()
 }) => {
     const [viewDate, setViewDate] = useState(selectedDate || new Date());
+    const [showYearPicker, setShowYearPicker] = useState(false);
     const calendarRef = useRef<HTMLDivElement>(null);
+
+    const currentYear = new Date().getFullYear();
+    const availableYears = [currentYear, currentYear + 1, currentYear + 2];
 
     // Close when clicking outside
     useEffect(() => {
@@ -38,6 +42,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
     const handleNextMonth = () => {
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+    };
+
+    const handleYearSelect = (year: number) => {
+        setViewDate(new Date(year, viewDate.getMonth(), 1));
+        setShowYearPicker(false);
     };
 
     const handleDateClick = (day: number) => {
@@ -105,45 +114,80 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 font-semibold text-lg">
+                <button
+                    onClick={() => setShowYearPicker(!showYearPicker)}
+                    className="flex items-center gap-1.5 font-semibold text-lg hover:bg-muted py-0.5 px-2 rounded-lg transition-colors group"
+                >
                     <span>{viewDate.getMonth() + 1} 月 {viewDate.getFullYear()}</span>
-                </div>
+                    <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${showYearPicker ? 'rotate-90' : ''}`} />
+                </button>
                 <div className="flex items-center gap-1">
-                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-muted dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                        <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-muted dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                        <ChevronRight className="h-4 w-4" />
-                    </button>
+                    {!showYearPicker && (
+                        <>
+                            <button onClick={handlePrevMonth} className="p-1.5 hover:bg-muted dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                                <ChevronLeft className="h-4 w-4" />
+                            </button>
+                            <button onClick={handleNextMonth} className="p-1.5 hover:bg-muted dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+                        </>
+                    )}
                     <button onClick={onClose} className="p-1.5 hover:bg-muted dark:hover:bg-zinc-800 rounded-lg transition-colors ml-1">
                         <X className="h-4 w-4" />
                     </button>
                 </div>
             </div>
 
-            {/* Weekdays */}
-            <div className="grid grid-cols-7 mb-2">
-                {weekDays.map(day => (
-                    <div key={day} className="h-9 w-9 flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                        周{day}
+            {showYearPicker ? (
+                <div className="py-4">
+                    <div className="text-xs text-muted-foreground mb-3 px-1 text-center font-medium">选择年份</div>
+                    <div className="grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                        {availableYears.map(year => (
+                            <button
+                                key={year}
+                                onClick={() => handleYearSelect(year)}
+                                className={`py-3 px-4 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 ${viewDate.getFullYear() === year
+                                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                                    : 'bg-muted hover:bg-muted/80'
+                                    }`}
+                            >
+                                {year}
+                                {viewDate.getFullYear() === year && <div className="h-1.5 w-1.5 rounded-full bg-current" />}
+                            </button>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </div>
+            ) : (
+                <>
+                    {/* Weekdays */}
+                    <div className="grid grid-cols-7 mb-2">
+                        {weekDays.map(day => (
+                            <div key={day} className="h-9 w-9 flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                周{day}
+                            </div>
+                        ))}
+                    </div>
 
-            {/* Grid */}
-            <div className="grid grid-cols-7 gap-y-1">
-                {renderDays()}
-            </div>
+                    {/* Grid */}
+                    <div className="grid grid-cols-7 gap-y-1">
+                        {renderDays()}
+                    </div>
+                </>
+            )}
 
             <div className="mt-4 pt-3 border-t border-border flex justify-between items-center">
                 <button
-                    onClick={() => onChange(new Date())}
+                    onClick={() => {
+                        const today = new Date();
+                        setViewDate(today);
+                        if (showYearPicker) setShowYearPicker(false);
+                    }}
                     className="text-xs text-primary hover:underline font-medium"
                 >
-                    今天
+                    跳转到今天
                 </button>
                 <div className="text-[10px] text-muted-foreground">
-                    请选择过期时间
+                    {showYearPicker ? '请选择一个年份' : '请选择过期时间'}
                 </div>
             </div>
         </motion.div>
