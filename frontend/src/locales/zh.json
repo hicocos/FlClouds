@@ -24,7 +24,7 @@
             "images": "图片",
             "videos": "视频",
             "audio": "音频",
-            "docs": "文档"
+            "docs": "其它"
         },
         "storage": {
             "used": "已用 {{used}} GB / 共 {{total}} GB",

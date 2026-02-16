@@ -305,7 +305,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
         const file = result.rows[0];
 
-        if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav') {
+        if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav' || file.source === 'google_drive') {
             try {
                 const { storageManager } = await import('../services/storage.js');
                 const provider = storageManager.getProvider(`${file.source}:${file.storage_account_id}`);
@@ -375,7 +375,7 @@ router.post('/batch-delete', async (req: Request, res: Response) => {
         // 2. 依次物理删除
         const storagePromises = uniqueFiles.map(async (file) => {
             try {
-                if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav') {
+                if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav' || file.source === 'google_drive') {
                     const { storageManager } = await import('../services/storage.js');
                     const provider = storageManager.getProvider(`${file.source}:${file.storage_account_id}`);
                     await provider.deleteFile(file.path);

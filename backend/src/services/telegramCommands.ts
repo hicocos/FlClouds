@@ -157,12 +157,13 @@ export async function handleDelete(message: Api.Message, args: string[]): Promis
         const file = result.rows[0];
 
         // 删除实际文件
-        if (file.source === 'onedrive') {
+        const cloudSources = ['onedrive', 'aliyun_oss', 's3', 'webdav', 'google_drive'];
+        if (cloudSources.includes(file.source)) {
             try {
-                const provider = storageManager.getProvider(`onedrive:${file.storage_account_id}`);
+                const provider = storageManager.getProvider(`${file.source}:${file.storage_account_id}`);
                 await provider.deleteFile(file.path);
             } catch (err) {
-                console.warn('🤖 OneDrive 文件物理删除失败或文件已不存在:', err);
+                console.warn(`🤖 ${file.source} 文件物理删除失败或文件已不存在:`, err);
             }
         } else if (file.path && fs.existsSync(file.path)) {
             fs.unlinkSync(file.path);
