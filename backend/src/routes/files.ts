@@ -85,7 +85,7 @@ router.get('/:id/preview', async (req: Request, res: Response) => {
 
         const file = result.rows[0];
 
-        if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav') {
+        if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav' || file.source === 'google_drive') {
             try {
                 const { storageManager } = await import('../services/storage.js');
                 const provider = storageManager.getProvider(`${file.source}:${file.storage_account_id}`);
@@ -167,7 +167,7 @@ router.get('/:id/download-url', async (req: Request, res: Response) => {
         const file = result.rows[0];
 
         // 1. 云存储文件：获取临时下载链接
-        if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav') {
+        if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav' || file.source === 'google_drive') {
             try {
                 const { storageManager } = await import('../services/storage.js');
                 const provider = storageManager.getProvider(`${file.source}:${file.storage_account_id}`);
@@ -214,7 +214,7 @@ router.get('/:id/download', async (req: Request, res: Response) => {
         const file = result.rows[0];
 
         // 处理云存储文件 (如果直接访问此接口，仍然尝试重定向或流式传输)
-        if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav') {
+        if (file.source === 'onedrive' || file.source === 'aliyun_oss' || file.source === 's3' || file.source === 'webdav' || file.source === 'google_drive') {
             try {
                 const { storageManager } = await import('../services/storage.js');
                 const provider = storageManager.getProvider(`${file.source}:${file.storage_account_id}`);
