@@ -466,12 +466,6 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
                                                 设置完成后，下次登录时系统将要求输入 6 位验证码。
                                             </p>
                                         </div>
-                                        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 max-w-sm">
-                                            <ShieldAlert className="h-4 w-4 shrink-0" />
-                                            <p className="text-[10px] leading-tight text-left">
-                                                重要：请确保您已在后端 <code>.env</code> 中配置了 <code>TOTP_SECRET</code>。如果尚未配置，请先联系管理员或在服务器控制台手动设置。
-                                            </p>
-                                        </div>
                                     </>
                                 ) : (
                                     <div className="py-4 text-destructive flex flex-col items-center gap-2">
