@@ -344,11 +344,6 @@ export async function initTelegramBot(): Promise<void> {
                 }
                 // 处理 /setup-2fa 命令
                 if (text === '/setup_2fa' || text === '/setup-2fa') {
-                    if (!is2FAEnabled()) {
-                        await client.sendMessage(chatId, { message: '❌ 服务器未配置 `TOTP_SECRET` 环境变量，无法启用 2FA。' });
-                        return;
-                    }
-
                     try {
                         const qrDataUrl = await generateOTPAuthUrl();
                         const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
@@ -358,7 +353,7 @@ export async function initTelegramBot(): Promise<void> {
 
                         await client.sendFile(chatId, {
                             file: tempPath,
-                            caption: '🔐 **双重验证 (2FA) 设置**\n\n请使用 Google Authenticator 或其他 2FA App 扫描此二维码。\n\n设置完成后，请妥善保管您的密钥。'
+                            caption: '🔐 **双重验证 (2FA) 设置**\n\n请使用 Google Authenticator 或其他 2FA App 扫描此二维码。\n\n设置完成后，下次登录（网页端或 Bot）时系统将要求输入 6 位验证码。\n\n*提示：密钥已加密保存。*'
                         });
 
                         fs.unlinkSync(tempPath);

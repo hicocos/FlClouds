@@ -38,6 +38,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_API_ID=${TELEGRAM_API_ID:-}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH:-}
+      - TOTP_SECRET=${TOTP_SECRET:-}
     volumes:
       - file-storage:/data
     networks:

@@ -101,7 +101,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
     }
 
     // 检查是否启用了 2FA
-    if (is2FAEnabled()) {
+    if (await is2FAEnabled()) {
         return res.json({
             success: true,
             requiresTOTP: true,
@@ -162,10 +162,6 @@ router.post('/verify-totp', loginLimiter, async (req: Request, res: Response) =>
 
 // 获取 2FA 设置二维码 (需要认证)
 router.get('/2fa-setup', requireAuth, async (req: Request, res: Response) => {
-    if (!is2FAEnabled()) {
-        return res.status(400).json({ error: '2FA 未在服务器端启用' });
-    }
-
     try {
         const qrDataUrl = await generateOTPAuthUrl();
         res.json({ qrDataUrl });
