@@ -423,7 +423,7 @@ function App() {
         (currentCategory === "image" && file.type === "image") ||
         (currentCategory === "video" && file.type === "video") ||
         (currentCategory === "audio" && file.type === "audio") ||
-        (currentCategory === "other" && !["image", "video", "audio"].includes(file.type));
+        (currentCategory === "document" && !["image", "video", "audio"].includes(file.type));
 
       const matchesSearch = file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (file.folder && file.folder.toLowerCase().includes(searchQuery.toLowerCase()));

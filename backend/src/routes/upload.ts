@@ -127,7 +127,11 @@ const handleUpload = async (req: Request, res: Response, source: string = 'web')
         if (mimeType.startsWith('image/')) type = 'image';
         else if (mimeType.startsWith('video/')) type = 'video';
         else if (mimeType.startsWith('audio/')) type = 'audio';
-        else if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text')) type = 'document';
+        else if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text') ||
+            mimeType.includes('word') || mimeType.includes('excel') || mimeType.includes('spreadsheet') ||
+            mimeType.includes('powerpoint') || mimeType.includes('presentation') ||
+            mimeType.includes('markdown') || mimeType.includes('json') || mimeType.includes('xml') ||
+            mimeType.includes('sql')) type = 'document';
 
         const result = await query(
             `INSERT INTO files 

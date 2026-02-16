@@ -72,7 +72,11 @@ function getFileType(mimeType: string): string {
     if (mimeType.startsWith('image/')) return 'image';
     if (mimeType.startsWith('video/')) return 'video';
     if (mimeType.startsWith('audio/')) return 'audio';
-    if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text')) return 'document';
+    if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text') ||
+        mimeType.includes('word') || mimeType.includes('excel') || mimeType.includes('spreadsheet') ||
+        mimeType.includes('powerpoint') || mimeType.includes('presentation') ||
+        mimeType.includes('markdown') || mimeType.includes('json') || mimeType.includes('xml') ||
+        mimeType.includes('sql')) return 'document';
     return 'other';
 }
 
