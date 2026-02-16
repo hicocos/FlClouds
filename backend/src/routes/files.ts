@@ -436,6 +436,93 @@ function formatRelativeTime(date: Date): string {
     return new Date(date).toLocaleDateString('zh-CN');
 }
 
+// 重命名文件
+router.patch('/:id/rename', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { name } = req.body;
+
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+            return res.status(400).json({ error: '文件名不能为空' });
+        }
+
+        const trimmedName = name.trim();
+
+        // 检查非法字符
+        if (/[\/\\:*?"<>|]/.test(trimmedName)) {
+            return res.status(400).json({ error: '文件名包含非法字符' });
+        }
+
+        const result = await query('SELECT * FROM files WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: '文件不存在' });
+        }
+
+        const file = result.rows[0];
+
+        // 检查后缀是否一致
+        const getExt = (n: string) => {
+            const dotIndex = n.lastIndexOf('.');
+            return dotIndex > 0 ? n.slice(dotIndex).toLowerCase() : '';
+        };
+
+        const oldExt = getExt(file.name);
+        const newExt = getExt(trimmedName);
+
+        if (oldExt !== newExt) {
+            return res.status(400).json({ error: '不允许修改文件后缀' });
+        }
+
+        await query('UPDATE files SET name = $1 WHERE id = $2', [trimmedName, id]);
+
+        res.json({ success: true, name: trimmedName });
+    } catch (error) {
+        console.error('重命名文件失败:', error);
+        res.status(500).json({ error: '重命名文件失败' });
+    }
+});
+
+// 重命名文件夹
+router.patch('/rename-folder', async (req: Request, res: Response) => {
+    try {
+        const { oldName, newName } = req.body;
+
+        if (!oldName || !newName || typeof oldName !== 'string' || typeof newName !== 'string') {
+            return res.status(400).json({ error: '参数错误' });
+        }
+
+        const trimmedNew = newName.trim();
+        if (trimmedNew.length === 0) {
+            return res.status(400).json({ error: '文件夹名不能为空' });
+        }
+
+        if (/[\/\\:*?"<>|]/.test(trimmedNew)) {
+            return res.status(400).json({ error: '文件夹名包含非法字符' });
+        }
+
+        // 检查旧文件夹是否存在
+        const checkResult = await query('SELECT COUNT(*) as cnt FROM files WHERE folder = $1', [oldName]);
+        if (parseInt(checkResult.rows[0].cnt) === 0) {
+            return res.status(404).json({ error: '文件夹不存在' });
+        }
+
+        // 检查新名称是否已存在
+        if (trimmedNew !== oldName) {
+            const existResult = await query('SELECT COUNT(*) as cnt FROM files WHERE folder = $1', [trimmedNew]);
+            if (parseInt(existResult.rows[0].cnt) > 0) {
+                return res.status(400).json({ error: '该文件夹名已存在' });
+            }
+        }
+
+        await query('UPDATE files SET folder = $1 WHERE folder = $2', [trimmedNew, oldName]);
+
+        res.json({ success: true, name: trimmedNew });
+    } catch (error) {
+        console.error('重命名文件夹失败:', error);
+        res.status(500).json({ error: '重命名文件夹失败' });
+    }
+});
+
 // 创建分享链接
 router.post('/:id/share', async (req: Request, res: Response) => {
     try {

@@ -436,6 +436,36 @@ class FileAPI {
         return response.json();
     }
 
+    // 重命名文件
+    async renameFile(id: string, name: string): Promise<{ success: boolean; name: string }> {
+        const response = await fetch(`${API_BASE}/api/files/${id}/rename`, {
+            method: 'PATCH',
+            headers: getHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ name }),
+        });
+        if (response.status === 401) throw new Error('UNAUTHORIZED');
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '重命名失败');
+        }
+        return response.json();
+    }
+
+    // 重命名文件夹
+    async renameFolder(oldName: string, newName: string): Promise<{ success: boolean; name: string }> {
+        const response = await fetch(`${API_BASE}/api/files/rename-folder`, {
+            method: 'PATCH',
+            headers: getHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ oldName, newName }),
+        });
+        if (response.status === 401) throw new Error('UNAUTHORIZED');
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '重命名文件夹失败');
+        }
+        return response.json();
+    }
+
     // 健康检查
     async healthCheck(): Promise<{ status: string; timestamp: string }> {
         const response = await fetch(`${API_BASE}/health`);

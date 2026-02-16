@@ -37,7 +37,13 @@
         "download": "下载",
         "preview": "预览",
         "items": "{{count}} 项",
-        "delete": "删除"
+        "delete": "删除",
+        "rename": "重命名",
+        "renameTitle": "重命名",
+        "renamePlaceholder": "输入新名称",
+        "renameConfirm": "确认",
+        "renameCancel": "取消",
+        "renameExtHint": "文件后缀不可修改"
     },
     "delete": {
         "title": "确认删除？",

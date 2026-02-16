@@ -37,7 +37,13 @@
         "download": "Download",
         "preview": "Preview",
         "items": "{{count}} items",
-        "delete": "Delete"
+        "delete": "Delete",
+        "rename": "Rename",
+        "renameTitle": "Rename",
+        "renamePlaceholder": "Enter new name",
+        "renameConfirm": "Confirm",
+        "renameCancel": "Cancel",
+        "renameExtHint": "File extension cannot be changed"
     },
     "delete": {
         "title": "Are you sure?",

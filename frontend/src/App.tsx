@@ -16,6 +16,7 @@ import { ViewToggle } from "./components/ui/ViewToggle";
 import { FileMenu } from "./components/ui/FileMenu";
 import { DeleteAlert } from "./components/ui/DeleteAlert";
 import { FolderPromptModal } from "./components/ui/FolderPromptModal";
+import { RenameModal } from "./components/ui/RenameModal";
 import { UploadQueueModal, type QueueItem } from "./components/ui/UploadQueueModal";
 import { Notification, type NotificationType } from "./components/ui/Notification";
 import { fileApi, type FileData, type StorageStats as StorageStatsType } from "./services/api";
@@ -55,6 +56,10 @@ function App() {
   const [deletingFile, setDeletingFile] = useState<FileData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentFolder, setCurrentFolder] = useState<string | null>(null); // 当前选中的文件夹
+
+  // 重命名状态
+  const [renamingFile, setRenamingFile] = useState<FileData | null>(null);
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
 
   const [isFoldersExpanded, setIsFoldersExpanded] = useState(false); // 文件夹区域折叠状态，默认折叠
 
@@ -371,6 +376,45 @@ function App() {
     );
   };
 
+  // 重命名文件
+  const handleFileRename = async (newName: string) => {
+    if (!renamingFile) return;
+    try {
+      await fileApi.renameFile(renamingFile.id, newName);
+      setFiles(prev => prev.map(f => f.id === renamingFile.id ? { ...f, name: newName } : f));
+      setRenamingFile(null);
+    } catch (error: any) {
+      if (error.message === 'UNAUTHORIZED') {
+        authService.clearToken();
+        setIsAuthenticated(false);
+      } else {
+        console.error('重命名失败:', error);
+        alert(error.message || '重命名失败');
+      }
+    }
+  };
+
+  // 重命名文件夹
+  const handleFolderRename = async (newName: string) => {
+    if (!renamingFolder) return;
+    try {
+      await fileApi.renameFolder(renamingFolder, newName);
+      setFiles(prev => prev.map(f => f.folder === renamingFolder ? { ...f, folder: newName } : f));
+      if (currentFolder === renamingFolder) {
+        setCurrentFolder(newName);
+      }
+      setRenamingFolder(null);
+    } catch (error: any) {
+      if (error.message === 'UNAUTHORIZED') {
+        authService.clearToken();
+        setIsAuthenticated(false);
+      } else {
+        console.error('重命名文件夹失败:', error);
+        alert(error.message || '重命名文件夹失败');
+      }
+    }
+  };
+
   const filteredFiles = useMemo(() => {
     return files.filter(file => {
       const matchesCategory =
@@ -641,6 +685,7 @@ function App() {
                               file={file}
                               onPreview={() => setSelectedFile(file)}
                               onDelete={() => verifyDelete(file)}
+                              onRename={() => setRenamingFile(file)}
                               isSelectionMode={isSelectionMode}
                               isSelected={selectedFileIds.includes(file.id)}
                               onSelect={toggleFileSelection}
@@ -720,6 +765,12 @@ function App() {
                                 <FolderCard
                                   folder={folder}
                                   onClick={() => setCurrentFolder(folder.name)}
+                                  onRename={() => setRenamingFolder(folder.name)}
+                                  onDelete={() => {
+                                    setSelectedFolderNames([folder.name]);
+                                    setSelectedFileIds([]);
+                                    handleBatchDelete();
+                                  }}
                                   isSelectionMode={isSelectionMode}
                                   isSelected={selectedFolderNames.includes(folder.name)}
                                   onSelect={toggleFolderSelection}
@@ -754,6 +805,7 @@ function App() {
                                     file={file}
                                     onPreview={() => setSelectedFile(file)}
                                     onDelete={() => verifyDelete(file)}
+                                    onRename={() => setRenamingFile(file)}
                                     isSelectionMode={isSelectionMode}
                                     isSelected={selectedFileIds.includes(file.id)}
                                     onSelect={toggleFileSelection}
@@ -816,6 +868,22 @@ function App() {
           onClose={() => setDeletingFile(null)}
           onConfirm={handleConfirmDelete}
           fileName={deletingFile?.name}
+        />
+
+        <RenameModal
+          isOpen={!!renamingFile}
+          onClose={() => setRenamingFile(null)}
+          onConfirm={handleFileRename}
+          currentName={renamingFile?.name || ''}
+          type="file"
+        />
+
+        <RenameModal
+          isOpen={!!renamingFolder}
+          onClose={() => setRenamingFolder(null)}
+          onConfirm={handleFolderRename}
+          currentName={renamingFolder || ''}
+          type="folder"
         />
 
         <FolderPromptModal

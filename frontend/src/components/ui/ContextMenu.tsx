@@ -1,0 +1,163 @@
+import { motion, AnimatePresence } from "framer-motion";
+import { Pencil, Download, Trash2 } from "lucide-react";
+import { useEffect, useRef } from "react";
+
+export interface ContextMenuItem {
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    variant?: "default" | "danger";
+}
+
+interface ContextMenuProps {
+    x: number;
+    y: number;
+    isOpen: boolean;
+    onClose: () => void;
+    items: ContextMenuItem[];
+}
+
+export const ContextMenu = ({ x, y, isOpen, onClose, items }: ContextMenuProps) => {
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                onClose();
+            }
+        };
+
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+
+        const handleScroll = () => onClose();
+
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("keydown", handleEscape);
+        window.addEventListener("scroll", handleScroll, true);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("keydown", handleEscape);
+            window.removeEventListener("scroll", handleScroll, true);
+        };
+    }, [isOpen, onClose]);
+
+    // Adjust position to keep menu within viewport
+    useEffect(() => {
+        if (!isOpen || !menuRef.current) return;
+        const menu = menuRef.current;
+        const rect = menu.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        if (rect.right > vw) {
+            menu.style.left = `${x - rect.width}px`;
+        }
+        if (rect.bottom > vh) {
+            menu.style.top = `${y - rect.height}px`;
+        }
+    }, [isOpen, x, y]);
+
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div
+                    ref={menuRef}
+                    initial={{ opacity: 0, scale: 0.92 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.92 }}
+                    transition={{ duration: 0.12 }}
+                    className="fixed z-[9999] min-w-[140px] bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-xl overflow-hidden p-1"
+                    style={{ left: x, top: y }}
+                >
+                    {items.map((item, index) => (
+                        <button
+                            key={index}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-md transition-colors text-left font-medium ${item.variant === "danger"
+                                ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                                : "text-foreground hover:bg-muted"
+                                }`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                item.onClick();
+                                onClose();
+                            }}
+                        >
+                            {item.icon}
+                            {item.label}
+                        </button>
+                    ))}
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
+
+// Helper to create standard file context menu items
+export const createFileMenuItems = (
+    t: (key: string) => string,
+    onRename?: () => void,
+    onDownload?: () => void,
+    onDelete?: () => void
+): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+
+    if (onRename) {
+        items.push({
+            label: t("file.rename") || "重命名",
+            icon: <Pencil className="h-4 w-4" />,
+            onClick: onRename,
+        });
+    }
+
+    if (onDownload) {
+        items.push({
+            label: t("file.download") || "下载",
+            icon: <Download className="h-4 w-4" />,
+            onClick: onDownload,
+        });
+    }
+
+    if (onDelete) {
+        items.push({
+            label: t("file.delete") || "删除",
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: onDelete,
+            variant: "danger",
+        });
+    }
+
+    return items;
+};
+
+// Helper to create standard folder context menu items
+export const createFolderMenuItems = (
+    t: (key: string) => string,
+    onRename?: () => void,
+    onDelete?: () => void
+): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+
+    if (onRename) {
+        items.push({
+            label: t("file.rename") || "重命名",
+            icon: <Pencil className="h-4 w-4" />,
+            onClick: onRename,
+        });
+    }
+
+    if (onDelete) {
+        items.push({
+            label: t("file.delete") || "删除",
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: onDelete,
+            variant: "danger",
+        });
+    }
+
+    return items;
+};
