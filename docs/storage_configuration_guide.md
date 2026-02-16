@@ -56,15 +56,40 @@ FoomClous 支持多种存储后端。您可以根据对速度、容量和成本�
 
 适合需要大量存储空间且拥有 Google 账号的用户。
 
-### 获取凭据
-1. 访问 [Google Cloud Console](https://console.cloud.google.com/apis/credentials)。
-2. 创建“OAuth 2.0 客户端 ID”。
-3. **应用类型**选择 `Web 应用程序`。
-4. 在“已授权的重定向 URI”中填写：`https://您的域名/api/storage/google-drive/callback`。
-5. 获取 **Client ID** 和 **Client Secret**。
+### 第一步：创建 Google Cloud 项目
+1. 访问 [Google Cloud Console](https://console.cloud.google.com/)。
+2. 点击屏幕顶部的项目选择器，选择 **“新建项目”**。
+3. 输入项目名称（如 `FoomClous-Storage`），点击 **“创建”**。
 
-### 开启功能
-- **设置 -> 存储源 -> Google Drive**，输入凭据并点击“保存并授权”。
+### 第二步：启用 Google Drive API
+1. 在控制台左侧菜单中，选择 **“API 和服务” > “库”**。
+2. 搜索 `Google Drive API` 并点击进入，点击 **“启用”**。
+
+### 第三步：品牌塑造 (重要)
+1. 在左侧菜单选择 **“API 和服务” > “OAuth 权限请求页面” > “品牌塑造”**。
+2. 在应用信息里填入 **应用名称** 和 **用户支持邮箱**。
+3. 在 **“已获授权的网域”** 填入您自己的域名。
+4. 点击 **“保存并继续”**。
+
+### 第四步：目标对象
+1. 在 **“目标对象”** 板块，点击 **“+ ADD USERS”**。
+2. 添加您自己的 **Google 邮箱地址**。
+3. *提示：如果不添加测试用户，在授权时会遇到 `403: access_denied` 错误。*
+
+### 第五步：创建凭据 (Client ID & Secret)
+1. 在左侧菜单选择 **“API 和服务” > “凭据”**。
+2. 点击顶部 **“创建凭据” > “OAuth 客户端 ID”**。
+3. **应用类型**选择 **“Web 应用程序”**。
+4. **已授权的重定向 URI**：
+   - 点击 **“添加 URI”**，输入：`https://您的域名/api/storage/google-drive/callback`
+   - *注意：必须与您面板显示的一致，支持 https。*
+5. 点击 **“创建”**，记录下 **客户端 ID** 和 **客户端密钥**。
+   - *提示：建议点击 **“下载 JSON”** 备份，密钥一旦关闭窗口将无法再次查看完整内容。*
+
+### 第六步：在 FoomClous 中完成授权
+1. 登录 FoomClous，进入 **“设置” > “存储源” > “Google Drive”**。
+2. 填入 **Client ID** 和 **Client Secret**，点击 **“保存并授权”**。
+3. 在授权页面，点击 **“高级”** 或 **“继续”**（如遇安全警告）并完成授权。
 
 ---
 
