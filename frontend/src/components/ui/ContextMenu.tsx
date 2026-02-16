@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Pencil, Download, Trash2 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 export interface ContextMenuItem {
     label: string;
@@ -62,7 +63,7 @@ export const ContextMenu = ({ x, y, isOpen, onClose, items }: ContextMenuProps) 
         }
     }, [isOpen, x, y]);
 
-    return (
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <motion.div
@@ -93,7 +94,8 @@ export const ContextMenu = ({ x, y, isOpen, onClose, items }: ContextMenuProps) 
                     ))}
                 </motion.div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 };
 
