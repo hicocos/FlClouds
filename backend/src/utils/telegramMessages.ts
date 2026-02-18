@@ -551,7 +551,7 @@ export function buildBatchStatus(data: BatchStatusData): string {
     if (completed === total) {
         if (failed === 0) { statusIcon = '✅'; statusText = '多文件上传完成！'; }
         else if (successful === 0) { statusIcon = '❌'; statusText = '多文件上传失败'; }
-        else { statusIcon = '⚠️'; statusText = '多文件上传部分完成'; }
+        else { statusIcon = '⚠️'; statusText = `多文件上传部分完成 (${failed} 个失败)`; }
     } else {
         statusIcon = '⏳'; statusText = '正在处理多文件上传...';
     }
@@ -560,48 +560,30 @@ export function buildBatchStatus(data: BatchStatusData): string {
         `${statusIcon} **${statusText}**`,
     ];
 
-    // 排队提示
-    if (completed < total && (data.queuePending > 0 || data.queueActive >= 2)) {
-        lines.push(`📊 已加入下载队列 (排队: ${data.queuePending})`);
-        lines.push('');
+    // 文件夹名
+    if (data.folderName) {
+        lines.push(`📁 ${data.folderName}`);
     }
 
-    // 文件夹 + 进度
-    if (data.folderName) {
-        lines.push(`📁 文件夹: ${data.folderName}`);
-    }
-    lines.push(`📊 进度: ${completed}/${total}`);
+    // 进度
+    lines.push(`📊 进度: ${completed}/${total}  ✅ ${successful}  ❌ ${failed}`);
     lines.push(generateProgressBar(completed, total));
+
+    // 排队提示
+    if (completed < total && (data.queuePending > 0 || data.queueActive >= 2)) {
+        lines.push(`⏳ 队列排队: ${data.queuePending}`);
+    }
 
     // 类型和存储
     if (successful > 0 || completed === total) {
         const successFiles = data.files.filter(f => f.status === 'success');
         const types = Array.from(new Set(successFiles.map(f => getTypeEmoji(f.mimeType)))).join(' ') || '❓';
-        lines.push(`🏷️ 类型: ${types}`);
+        const totalSize = successFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+        lines.push(`🏷️ ${types}  📦 ${formatBytes(totalSize)}`);
         if (data.providerName) {
-            lines.push(`📍 存储: ${getProviderDisplayName(data.providerName)}`);
+            lines.push(`📍 ${getProviderDisplayName(data.providerName)}`);
         }
     }
-
-    lines.push('');
-
-    // 文件列表详情
-    data.files.forEach(file => {
-        let fileIcon: string;
-        let fileStatus: string;
-
-        switch (file.status) {
-            case 'uploading': fileIcon = '🔄'; fileStatus = '上传中...'; break;
-            case 'success': fileIcon = '✅'; fileStatus = formatBytes(file.size || 0); break;
-            case 'failed': fileIcon = '❌'; fileStatus = file.error || '失败'; break;
-            case 'queued': fileIcon = '🕒'; fileStatus = '排队中...'; break;
-            default: fileIcon = '⏳'; fileStatus = '等待中'; break;
-        }
-
-        const typeEmoji = getTypeEmoji(file.mimeType);
-        lines.push(`${fileIcon} ${typeEmoji} ${file.fileName}`);
-        lines.push(`    └ ${fileStatus}`);
-    });
 
     return lines.join('\n');
 }
