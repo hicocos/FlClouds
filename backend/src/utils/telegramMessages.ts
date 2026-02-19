@@ -426,6 +426,13 @@ export function buildSilentBatchComplete(types: string, providerName: string): s
     return `✅ **多文件上传完成！**\n🏷️ 类型: ${types}\n📍 ${getProviderDisplayName(providerName)}`;
 }
 
+export function buildSilentAllTasksComplete(failedCount: number): string {
+    if (failedCount > 0) {
+        return `⚠️ **后台任务部分完成**\n\n❌ 失败文件: ${failedCount} 个`;
+    }
+    return `✅ **后台任务全部完成**`;
+}
+
 // ─── 合并状态（单文件 + 批量） ──────────────────────────────
 
 export interface ConsolidatedUploadFile {
