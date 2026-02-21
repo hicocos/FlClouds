@@ -190,6 +190,12 @@ function App() {
     }
   }, [currentCategory, isAuthenticated, loadFiles]);
 
+  useEffect(() => {
+    if (currentCategory === 'ytdlp') {
+      setCurrentFolder(null);
+    }
+  }, [currentCategory]);
+
   // 登录处理
   const handleLogin = async (password: string) => {
     const result = await authService.login(password);
@@ -513,6 +519,9 @@ function App() {
 
   // 按文件夹分组文件，生成文件夹列表
   const folders = useMemo(() => {
+    if (currentCategory === 'ytdlp') {
+      return [];
+    }
     const folderMap = new Map<string, FileData[]>();
 
     // 只处理有文件夹的文件
@@ -567,7 +576,9 @@ function App() {
 
   // 没有文件夹的散文件
   const looseFiles = useMemo(() => {
-    const files = filteredFiles.filter(file => !file.folder);
+    const files = currentCategory === 'ytdlp'
+      ? filteredFiles
+      : filteredFiles.filter(file => !file.folder);
 
     // 排序逻辑
     return files.sort((a, b) => {
@@ -581,7 +592,7 @@ function App() {
       }
       return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
-  }, [filteredFiles, sortConfig]);
+  }, [filteredFiles, sortConfig, currentCategory]);
 
   // 当前显示的文件（在文件夹内时显示该文件夹的文件）
   const displayFiles = useMemo(() => {
