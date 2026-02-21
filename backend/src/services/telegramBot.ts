@@ -390,13 +390,16 @@ export async function initTelegramBot(): Promise<void> {
                 }
 
                 // /ytdlp <url>
-                if (text === '/ytdlp' || text.startsWith('/ytdlp ')) {
+                {
+                    const match = text.match(/^\/ytdlp(?:@\w+)?(?:\s+(.*))?$/i);
+                    if (match) {
+                        console.log(`🤖 /ytdlp command received from ${senderId}: ${text}`);
                     if (!isAuthenticated(senderId)) {
                         await message.reply({ message: MSG.AUTH_REQUIRED });
                         return;
                     }
 
-                    const argsText = text.replace('/ytdlp', '').trim();
+                        const argsText = (match[1] || '').trim();
                     if (!argsText) {
                         await message.reply({ message: '❌ 用法: /ytdlp <url>' });
                         return;
@@ -416,6 +419,7 @@ export async function initTelegramBot(): Promise<void> {
 
                     await handleYtDlpCommand(message, url);
                     return;
+                }
                 }
 
                 if (text === '/storage') {
