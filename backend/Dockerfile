@@ -21,7 +21,9 @@ FROM node:20-alpine
 WORKDIR /app
 
 # 安装 sharp 需要的依赖 和 ffmpeg (用于视频处理)
-RUN apk add --no-cache vips-dev ffmpeg
+RUN apk add --no-cache vips-dev ffmpeg ca-certificates curl \
+    && curl -L "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" -o /usr/local/bin/yt-dlp \
+    && chmod +x /usr/local/bin/yt-dlp
 
 # 复制依赖
 COPY package*.json ./

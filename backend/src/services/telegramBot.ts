@@ -9,6 +9,7 @@ import { authenticatedUsers, passwordInputState, isAuthenticated, loadAuthentica
 import { is2FAEnabled, generateOTPAuthUrl, verifyTOTP, activate2FA } from '../utils/security.js';
 import { handleStart, handleHelp, handleStorage, handleList, handleDelete, handleTasks } from './telegramCommands.js';
 import { handleFileUpload, handleCleanupCallback } from './telegramUpload.js';
+import { handleYtDlpCommand } from './ytDlpDownload.js';
 import { cleanupOrphanFiles, startPeriodicCleanup } from './orphanCleanup.js';
 import { verifyPassword } from '../utils/telegramUtils.js';
 import { MSG, buildStartPrompt, buildAuthSuccess, build2FASetupCaption, buildCleanupNotice } from '../utils/telegramMessages.js';
@@ -290,6 +291,7 @@ export async function initTelegramBot(): Promise<void> {
                 commands: [
                     new Api.BotCommand({ command: 'start', description: '开始使用 / 验证身份' }),
                     new Api.BotCommand({ command: 'setup_2fa', description: '配置双重验证 (2FA)' }),
+                    new Api.BotCommand({ command: 'ytdlp', description: '解析并下载链接到存储源' }),
                     new Api.BotCommand({ command: 'storage', description: '查看存储统计' }),
                     new Api.BotCommand({ command: 'list', description: '查看上传记录' }),
                     new Api.BotCommand({ command: 'tasks', description: '查看任务状态' }),
@@ -343,6 +345,8 @@ export async function initTelegramBot(): Promise<void> {
 
                 if (!chatId) return;
 
+                console.log(`🤖 Received text from ${senderId}: ${text}`);
+
                 // Commands
                 if (text === '/start') {
                     await handleStart(message, senderId);
@@ -385,6 +389,39 @@ export async function initTelegramBot(): Promise<void> {
                 if (text === '/help') {
                     await handleHelp(message);
                     return;
+                }
+
+                // /ytdlp <url>
+                {
+                    const match = text.match(/^\s*\/ytdlp(?:@\w+)?(?:\s+([\s\S]*))?\s*$/i);
+                    if (match) {
+                        console.log(`🤖 /ytdlp command received from ${senderId}: ${text}`);
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+
+                        const argsText = (match[1] || '').trim();
+                    if (!argsText) {
+                        await message.reply({ message: '❌ 用法: /ytdlp <url>' });
+                        return;
+                    }
+
+                    const parts = argsText.split(/\s+/).filter(Boolean);
+                    if (parts.length !== 1) {
+                        await message.reply({ message: '❌ 只允许一个链接\n\n用法: /ytdlp <url>' });
+                        return;
+                    }
+
+                    const url = parts[0];
+                    if (!/^https?:\/\//i.test(url)) {
+                        await message.reply({ message: '❌ 无效链接：必须以 http:// 或 https:// 开头' });
+                        return;
+                    }
+
+                    await handleYtDlpCommand(message, url);
+                    return;
+                }
                 }
 
                 if (text === '/storage') {
