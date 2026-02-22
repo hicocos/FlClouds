@@ -3373,41 +3373,66 @@ function pickYtdlpVideoFormat(info, tier) {
   const formats = Array.isArray(info?.formats) ? info.formats : [];
   const videos = formats.filter((f) => {
     const height = typeof f?.height === "number" ? f.height : Number(f?.height);
+    const tbr = typeof f?.tbr === "number" ? f.tbr : Number(f?.tbr);
+    const vbr = typeof f?.vbr === "number" ? f.vbr : Number(f?.vbr);
     const vcodec = (f?.vcodec || "").toString();
     const formatId = (f?.format_id || "").toString();
-    return Number.isFinite(height) && height > 0 && vcodec && vcodec !== "none" && formatId;
+    const hasQuality = Number.isFinite(height) && height > 0 || Number.isFinite(tbr) && tbr > 0 || Number.isFinite(vbr) && vbr > 0;
+    return hasQuality && vcodec && vcodec !== "none" && formatId;
   }).map((f) => ({
     formatId: (f.format_id || "").toString(),
-    height: typeof f.height === "number" ? f.height : Number(f.height)
-  })).sort((a, b) => a.height - b.height);
+    height: typeof f.height === "number" ? f.height : Number(f.height),
+    tbr: typeof f.tbr === "number" ? f.tbr : Number(f.tbr),
+    vbr: typeof f.vbr === "number" ? f.vbr : Number(f.vbr)
+  })).map((v) => {
+    const height = Number.isFinite(v.height) && v.height > 0 ? v.height : 0;
+    const br = Math.max(Number.isFinite(v.vbr) ? v.vbr : 0, Number.isFinite(v.tbr) ? v.tbr : 0);
+    return { ...v, height, br };
+  }).sort((a, b) => a.height - b.height || a.br - b.br);
   if (videos.length === 0) return null;
-  const uniqueHeights = Array.from(new Set(videos.map((v) => v.height))).sort((a, b) => a - b);
-  const minHeight = uniqueHeights[0];
-  const maxHeight = uniqueHeights[uniqueHeights.length - 1];
+  const heights = videos.map((v) => v.height).filter((h) => Number.isFinite(h) && h > 0);
+  const minHeight = heights.length ? Math.min(...heights) : 0;
+  const maxHeight = heights.length ? Math.max(...heights) : 0;
+  const brs = videos.map((v) => v.br).filter((b) => Number.isFinite(b) && b > 0);
+  const minBr = brs.length ? Math.min(...brs) : 0;
+  const maxBr = brs.length ? Math.max(...brs) : 0;
+  const sameHeightOnly = minHeight > 0 && maxHeight > 0 && minHeight === maxHeight;
+  const pickByBitrate = sameHeightOnly || minHeight === 0 && maxHeight === 0;
   if (tier === "hq") {
-    const v = videos[videos.length - 1];
-    return { ...v, minHeight, maxHeight };
+    const v = pickByBitrate ? [...videos].sort((a, b) => a.br - b.br)[videos.length - 1] : videos[videos.length - 1];
+    return { ...v, minHeight, maxHeight, minBr, maxBr };
   }
   if (tier === "sd") {
-    const target = 720;
-    let v = [...videos].reverse().find((x) => x.height <= target);
-    if (!v) {
-      const target2 = 1080;
-      v = [...videos].reverse().find((x) => x.height <= target2) || videos[videos.length - 1];
+    let v;
+    if (pickByBitrate) {
+      const sorted = [...videos].sort((a, b) => a.br - b.br);
+      v = sorted[Math.floor((sorted.length - 1) / 2)] || sorted[0];
+    } else {
+      const target = 720;
+      v = [...videos].reverse().find((x) => x.height > 0 && x.height <= target);
+      if (!v) {
+        const target2 = 1080;
+        v = [...videos].reverse().find((x) => x.height > 0 && x.height <= target2) || videos[videos.length - 1];
+      }
     }
-    return { ...v, minHeight, maxHeight };
+    return { ...v, minHeight, maxHeight, minBr, maxBr };
   }
   if (tier === "low") {
-    const target = 360;
-    let v = [...videos].reverse().find((x) => x.height <= target);
-    if (!v) {
-      const target2 = 480;
-      v = [...videos].reverse().find((x) => x.height <= target2) || videos[0];
+    let v;
+    if (pickByBitrate) {
+      v = [...videos].sort((a, b) => a.br - b.br)[0];
+    } else {
+      const target = 360;
+      v = [...videos].reverse().find((x) => x.height > 0 && x.height <= target);
+      if (!v) {
+        const target2 = 480;
+        v = [...videos].reverse().find((x) => x.height > 0 && x.height <= target2) || videos[0];
+      }
     }
-    return { ...v, minHeight, maxHeight };
+    return { ...v, minHeight, maxHeight, minBr, maxBr };
   }
   const v = videos[videos.length - 1];
-  return { ...v, minHeight, maxHeight };
+  return { ...v, minHeight, maxHeight, minBr, maxBr };
 }
 function ensureDir(p) {
   if (!fs7.existsSync(p)) {
@@ -4002,7 +4027,7 @@ async function initTelegramBot() {
                 buttons: null
               });
             };
-            const pickedLine = selected ? `\n\n\uD83C\uDFA5 \u9009\u4E2D: ${selected.height}p (id: ${selected.formatId})\n\uD83D\uDCCA \u53EF\u7528: ${selected.minHeight}p ~ ${selected.maxHeight}p` : "";
+            const pickedLine = selected ? `\n\n\uD83C\uDFA5 \u9009\u4E2D: ${(selected.height || 0) > 0 ? selected.height + "p" : "?p"} / ${(selected.br || 0) > 0 ? Math.round(selected.br) + "kbps" : "?kbps"} (id: ${selected.formatId})\n\uD83D\uDCCA \u53EF\u7528: ${selected.minHeight || 0}p~${selected.maxHeight || 0}p / ${Math.round(selected.minBr || 0)}~${Math.round(selected.maxBr || 0)}kbps` : "";
             await updateText(`\uD83C\uDFAC YT-DLP \u4EFB\u52A1\n\n\uD83D\uDD17 \u94FE\u63A5\n${pending.displayUrl}\n\n\u{1F3AF} \u6E05\u6670\u5EA6: ${tierLabel}${pickedLine}\n\n\u2B07\uFE0F \u72B6\u6001: \u6B63\u5728\u4E0B\u8F7D...\n\uD83C\uDD94 Task: ${taskId}`);
             ytDlpQueue.add(async () => {
               try {
