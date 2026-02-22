@@ -40,6 +40,7 @@ services:
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH:-}
       - TOTP_SECRET=${TOTP_SECRET:-}
     volumes:
+      - ./dist/index.js:/app/dist/index.js:ro
       - file-storage:/data
     networks:
       - foomclous-network
