@@ -3334,6 +3334,81 @@ function getYtdlpTierLabel(tier) {
   if (tier === "low") return "\uD83D\uDCE6 \u4F4E\u753B\u8D28";
   return tier;
 }
+async function probeYtDlpInfo(url) {
+  const args = ["--no-playlist", "-J", url];
+  const info = await new Promise((resolve, reject) => {
+    const binLower = YTDLP_BIN.toLowerCase();
+    const isWindows = os2.platform() === "win32";
+    const needsShell = isWindows && (binLower.endsWith(".cmd") || binLower.endsWith(".bat"));
+    const child = spawn(YTDLP_BIN, args, {
+      windowsHide: true,
+      shell: needsShell
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => {
+      stdout += d.toString();
+      if (stdout.length > 2e6) stdout = stdout.slice(-2e6);
+    });
+    child.stderr.on("data", (d) => {
+      stderr += d.toString();
+      if (stderr.length > 4e3) stderr = stderr.slice(-4e3);
+    });
+    child.on("error", (err) => reject(err));
+    child.on("close", (code) => {
+      if (code === 0) {
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (e) {
+          reject(new Error(`yt-dlp -J parse failed: ${e instanceof Error ? e.message : String(e)}`));
+        }
+        return;
+      }
+      reject(new Error(stderr.trim() || `yt-dlp -J exited with code ${code}`));
+    });
+  });
+  return info;
+}
+function pickYtdlpVideoFormat(info, tier) {
+  const formats = Array.isArray(info?.formats) ? info.formats : [];
+  const videos = formats.filter((f) => {
+    const height = typeof f?.height === "number" ? f.height : Number(f?.height);
+    const vcodec = (f?.vcodec || "").toString();
+    const formatId = (f?.format_id || "").toString();
+    return Number.isFinite(height) && height > 0 && vcodec && vcodec !== "none" && formatId;
+  }).map((f) => ({
+    formatId: (f.format_id || "").toString(),
+    height: typeof f.height === "number" ? f.height : Number(f.height)
+  })).sort((a, b) => a.height - b.height);
+  if (videos.length === 0) return null;
+  const uniqueHeights = Array.from(new Set(videos.map((v) => v.height))).sort((a, b) => a - b);
+  const minHeight = uniqueHeights[0];
+  const maxHeight = uniqueHeights[uniqueHeights.length - 1];
+  if (tier === "hq") {
+    const v = videos[videos.length - 1];
+    return { ...v, minHeight, maxHeight };
+  }
+  if (tier === "sd") {
+    const target = 720;
+    let v = [...videos].reverse().find((x) => x.height <= target);
+    if (!v) {
+      const target2 = 1080;
+      v = [...videos].reverse().find((x) => x.height <= target2) || videos[videos.length - 1];
+    }
+    return { ...v, minHeight, maxHeight };
+  }
+  if (tier === "low") {
+    const target = 360;
+    let v = [...videos].reverse().find((x) => x.height <= target);
+    if (!v) {
+      const target2 = 480;
+      v = [...videos].reverse().find((x) => x.height <= target2) || videos[0];
+    }
+    return { ...v, minHeight, maxHeight };
+  }
+  const v = videos[videos.length - 1];
+  return { ...v, minHeight, maxHeight };
+}
 function ensureDir(p) {
   if (!fs7.existsSync(p)) {
     fs7.mkdirSync(p, { recursive: true });
@@ -3909,7 +3984,13 @@ async function initTelegramBot() {
             }
             pendingYtDlpSelections.delete(taskId);
             const tierLabel = getYtdlpTierLabel(tier);
-            const format = getYtdlpFormatForTier(tier);
+            let selected = null;
+            try {
+              const info = await probeYtDlpInfo(pending.url);
+              selected = pickYtdlpVideoFormat(info, tier);
+            } catch {
+            }
+            const format = selected ? `${selected.formatId}+bestaudio/best` : getYtdlpFormatForTier(tier);
             await client.invoke(new Api2.messages.SetBotCallbackAnswer({
               queryId: callbackUpdate.queryId,
               message: `\u2705 \u5DF2\u9009\u62E9: ${tierLabel}`
@@ -3921,7 +4002,8 @@ async function initTelegramBot() {
                 buttons: null
               });
             };
-            await updateText(`\uD83C\uDFAC YT-DLP \u4EFB\u52A1\n\n\uD83D\uDD17 \u94FE\u63A5\n${pending.displayUrl}\n\n\u{1F3AF} \u6E05\u6670\u5EA6: ${tierLabel}\n\n\u2B07\uFE0F \u72B6\u6001: \u6B63\u5728\u4E0B\u8F7D...\n\uD83C\uDD94 Task: ${taskId}`);
+            const pickedLine = selected ? `\n\n\uD83C\uDFA5 \u9009\u4E2D: ${selected.height}p (id: ${selected.formatId})\n\uD83D\uDCCA \u53EF\u7528: ${selected.minHeight}p ~ ${selected.maxHeight}p` : "";
+            await updateText(`\uD83C\uDFAC YT-DLP \u4EFB\u52A1\n\n\uD83D\uDD17 \u94FE\u63A5\n${pending.displayUrl}\n\n\u{1F3AF} \u6E05\u6670\u5EA6: ${tierLabel}${pickedLine}\n\n\u2B07\uFE0F \u72B6\u6001: \u6B63\u5728\u4E0B\u8F7D...\n\uD83C\uDD94 Task: ${taskId}`);
             ytDlpQueue.add(async () => {
               try {
                 await runYtDlpDownload(pending.url, pending.taskDir, format);
