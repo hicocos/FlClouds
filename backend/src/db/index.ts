@@ -52,16 +52,22 @@ async function initializeDatabase() {
                 i++; // 跳过下一个 $
             } else if (char === ';' && !inDollarQuote) {
                 const stmt = current.trim();
-                if (stmt.length > 1 && !stmt.startsWith('--')) {
-                    statements.push(stmt.slice(0, -1)); // 移除末尾的分号
+                if (stmt.length > 1) {
+                    const withoutLeadingLineComments = stmt.replace(/^\s*(--[^\n]*\n\s*)+/g, '').trim();
+                    if (withoutLeadingLineComments.length > 0) {
+                        statements.push(withoutLeadingLineComments.slice(0, -1)); // 移除末尾的分号
+                    }
                 }
                 current = '';
             }
         }
         // 添加最后一条语句（如果没有以分号结尾）
         const lastStmt = current.trim();
-        if (lastStmt.length > 0 && !lastStmt.startsWith('--')) {
-            statements.push(lastStmt);
+        if (lastStmt.length > 0) {
+            const withoutLeadingLineComments = lastStmt.replace(/^\s*(--[^\n]*\n\s*)+/g, '').trim();
+            if (withoutLeadingLineComments.length > 0) {
+                statements.push(withoutLeadingLineComments);
+            }
         }
 
         for (const statement of statements) {
