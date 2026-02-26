@@ -37,11 +37,17 @@ async function sleep(ms: number) {
 /**
  * 安全编辑消息，捕获 FloodWaitError 并更新全局冷却状态
  */
-async function safeEditMessage(client: TelegramClient, chatId: Api.TypeEntityLike, params: { message: number, text: string }) {
+async function safeEditMessage(client: TelegramClient, chatId: Api.TypeEntityLike, params: any) {
     if (Date.now() < floodWaitUntil) return null;
 
     try {
-        return await client.editMessage(chatId, params);
+        const result = await client.editMessage(chatId, params);
+        if (process.env.TG_STATUS_DEBUG === '1') {
+            const chatIdStr = chatId.toString();
+            const isSilent = lastStatusMessageIsSilent.get(chatIdStr) || silentSessionMap.has(chatIdStr);
+            console.log(`[TG][status] edit chat=${chatIdStr} msg=${params?.message} silent=${isSilent}`);
+        }
+        return result;
     } catch (e: any) {
         if (e.errorMessage === 'FLOOD' || e.errorMessage?.includes('FLOOD_WAIT')) {
             const seconds = e.seconds || 30; // 默认冷却 30 秒
@@ -64,6 +70,9 @@ async function ensureSilentNotice(client: TelegramClient, message: Api.Message, 
     const silentFlagActive = lastStatusMessageIsSilent.get(chatIdStr);
 
     if (now - lastTime > SILENT_NOTIFICATION_COOLDOWN || !lastMsgId || (silentSessionActive && !silentFlagActive)) {
+        if (process.env.TG_STATUS_DEBUG === '1') {
+            console.log(`[TG][silent] ensure chat=${chatIdStr} fileCount=${fileCount} lastMsg=${lastMsgId || 0} sess=${silentSessionActive} flag=${!!silentFlagActive}`);
+        }
         await deleteLastStatusMessage(client, chatId);
         const sMsg = await safeReply(message, {
             message: buildSilentModeNotice(fileCount)
@@ -82,7 +91,14 @@ async function safeReply(message: Api.Message, params: { message: string, button
     if (Date.now() < floodWaitUntil) return null;
 
     try {
-        return await message.reply(params);
+        const result = await message.reply(params);
+        if (process.env.TG_STATUS_DEBUG === '1') {
+            const chatIdStr = message.chatId?.toString() || 'unknown';
+            const isSilent = lastStatusMessageIsSilent.get(chatIdStr) || silentSessionMap.has(chatIdStr);
+            const msgId = (result as any)?.id;
+            console.log(`[TG][status] reply chat=${chatIdStr} msg=${msgId} silent=${isSilent}`);
+        }
+        return result;
     } catch (e: any) {
         if (e.errorMessage === 'FLOOD' || e.errorMessage?.includes('FLOOD_WAIT')) {
             const seconds = e.seconds || 30;
@@ -275,6 +291,10 @@ async function deleteLastStatusMessage(client: TelegramClient, chatId: Api.TypeE
     const chatIdStr = chatId.toString();
     const lastMsgId = lastStatusMessageIdMap.get(chatIdStr);
     if (lastMsgId) {
+        if (process.env.TG_STATUS_DEBUG === '1') {
+            const isSilent = lastStatusMessageIsSilent.get(chatIdStr) || silentSessionMap.has(chatIdStr);
+            console.log(`[TG][status] delete chat=${chatIdStr} msg=${lastMsgId} silent=${isSilent}`);
+        }
         try {
             await client.deleteMessages(chatId, [lastMsgId], { revoke: true });
         } catch (e) {
@@ -293,6 +313,10 @@ function updateLastStatusMessageId(chatId: Api.TypeEntityLike | undefined, msgId
     const chatIdStr = chatId.toString();
     lastStatusMessageIdMap.set(chatIdStr, msgId);
     lastStatusMessageIsSilent.set(chatIdStr, isSilent);
+    if (process.env.TG_STATUS_DEBUG === '1') {
+        const sess = silentSessionMap.has(chatIdStr);
+        console.log(`[TG][status] last chat=${chatIdStr} msg=${msgId} isSilent=${isSilent} sess=${sess}`);
+    }
 }
 
 // ─── 单文件合并状态追踪器 ──────────────────────────────────────
@@ -399,6 +423,9 @@ function isAllConsolidatedTasksDone(chatId: string): boolean {
 async function checkAndResetSession(client: TelegramClient, chatId: Api.TypeEntityLike) {
     const chatIdStr = chatId.toString();
     if (silentSessionMap.has(chatIdStr)) {
+        if (process.env.TG_STATUS_DEBUG === '1') {
+            console.log(`[TG][status] reset-skip chat=${chatIdStr} reason=silentSession`);
+        }
         return;
     }
     const hasAnyTask = getActiveBatchCount(chatIdStr) > 0 || getActiveUploadCount(chatIdStr) > 0;
@@ -416,6 +443,9 @@ async function refreshConsolidatedMessage(client: TelegramClient, chatId: Api.Ty
 
     // 静默模式下不更新合并状态消息，避免覆盖静默通知
     if (lastStatusMessageIsSilent.get(chatIdStr) || silentSessionMap.has(chatIdStr)) {
+        if (process.env.TG_STATUS_DEBUG === '1') {
+            console.log(`[TG][consolidated] skip chat=${chatIdStr} reason=silent`);
+        }
         return;
     }
 
