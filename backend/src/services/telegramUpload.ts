@@ -1039,6 +1039,10 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
                 const totalTasks = Math.max(1, getOutstandingTaskCount(chatIdStr));
                 const isSilent = silentSessionMap.has(chatIdStr);
                 if (isSilent || totalTasks >= 3) {
+                    if (!isSilent) {
+                        // 首次进入静默模式：删除旧的合并状态消息，避免干扰静默通知
+                        await deleteLastStatusMessage(client, chatId);
+                    }
                     const sess = isSilent ? getSilentSession(chatIdStr) : startSilentSession(chatIdStr, totalTasks);
                     sess.total = Math.max(sess.total, totalTasks);
 
@@ -1090,6 +1094,10 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
             const totalTasks = Math.max(1, getOutstandingTaskCount(chatIdStr));
             const isSilent = silentSessionMap.has(chatIdStr);
             if (isSilent || totalTasks >= 3) {
+                if (!isSilent) {
+                    // 首次进入静默模式：删除旧的合并状态消息，避免干扰静默通知
+                    await deleteLastStatusMessage(client, chatId);
+                }
                 const sess = isSilent ? getSilentSession(chatIdStr) : startSilentSession(chatIdStr, totalTasks);
                 sess.total = Math.max(sess.total, totalTasks);
 
