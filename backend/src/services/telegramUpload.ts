@@ -318,7 +318,11 @@ function getBackgroundFileCount(chatIdStr: string): number {
     const batchFiles = batches.reduce((sum, b) => sum + b.totalFiles, 0);
     // 取较大值：队列中的文件 vs 追踪器中的文件
     const count = Math.max(queueStats.total, trackedFiles + batchFiles);
-    console.log(`[TG][silent] fileCount: queue=${queueStats.total}(active=${queueStats.active},pending=${queueStats.pending}) tracked=${trackedFiles}+${batchFiles} => ${count}`);
+
+    const logLine = `[TG][silent][${Date.now()}] fileCount: queue=${queueStats.total}(a=${queueStats.active},p=${queueStats.pending}) tracked=${trackedFiles}+${batchFiles} => ${count}\n`;
+    console.log(logLine.trim());
+    try { fs.appendFileSync('tg_silent_debug.log', logLine); } catch (e) { }
+
     return count;
 }
 
@@ -331,7 +335,9 @@ async function trySilentMode(client: TelegramClient, chatId: Api.TypeEntityLike,
     const fileCount = getBackgroundFileCount(chatIdStr);
     const isSilent = silentSessionMap.has(chatIdStr);
 
-    console.log(`[TG][silent] tryCheck chat=${chatIdStr} fileCount=${fileCount} isSilent=${isSilent}`);
+    const logLine = `[TG][silent][${Date.now()}] tryCheck chat=${chatIdStr} fileCount=${fileCount} isSilent=${isSilent}\n`;
+    console.log(logLine.trim());
+    try { fs.appendFileSync('tg_silent_debug.log', logLine); } catch (e) { }
 
     if (fileCount > 3 || isSilent) {
         if (!isSilent) {
@@ -518,6 +524,10 @@ async function refreshConsolidatedMessage(client: TelegramClient, chatId: Api.Ty
     // 集中判断：如果文件数超过 3 或已在静默模式，直接触发 trySilentMode 并返回
     const alreadySilent = silentSessionMap.has(chatIdStr);
     const fileCount = getBackgroundFileCount(chatIdStr);
+
+    const logLine = `[TG][consolidated][${Date.now()}] check chat=${chatIdStr} silent=${alreadySilent} fileCount=${fileCount} replyTo=${!!replyTo}\n`;
+    try { fs.appendFileSync('tg_silent_debug.log', logLine); } catch (e) { }
+
     if (alreadySilent || fileCount > 3) {
         await trySilentMode(client, chatId, replyTo);
         return;
