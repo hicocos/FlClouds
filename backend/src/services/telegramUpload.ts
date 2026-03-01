@@ -323,20 +323,22 @@ async function finalizeSilentSessionIfDone(client: TelegramClient, chatId: Api.T
 }
 
 /**
- * 计算后台文件总数 = 下载队列中的文件(active+pending) + 已注册但未入队的文件
+ * 计算后台文件总数 = 下载队列中的活跃文件 + 已注册但未完成的单文件 + 批量任务中未完成的文件
  */
 function getBackgroundFileCount(chatIdStr: string): number {
-    // 下载队列中正在处理和排队的文件
-    const queueStats = downloadQueue.getStats();
-    // 已注册到追踪器但可能尚未入队的单文件
-    const trackedFiles = getActiveUploadCount(chatIdStr);
-    // 已注册到追踪器的批量文件
-    const batches = getConsolidatedBatches(chatIdStr);
-    const batchFiles = batches.reduce((sum, b) => sum + b.totalFiles, 0);
-    // 取较大值：队列中的文件 vs 追踪器中的文件
-    const count = Math.max(queueStats.total, trackedFiles + batchFiles);
+    // 1. 只统计当前聊天中“未完成”的单文件上传 (避开 8 秒展示期的已成功/已失败任务)
+    const files = getConsolidatedFiles(chatIdStr);
+    const activeFilesCount = files.filter(f => f.phase !== 'success' && f.phase !== 'failed').length;
 
-    const logLine = `[TG][silent][${Date.now()}] fileCount: queue=${queueStats.total}(a=${queueStats.active},p=${queueStats.pending}) tracked=${trackedFiles}+${batchFiles} => ${count}\n`;
+    // 2. 只统计当前聊天中“未完成”的批量任务中的剩余文件
+    const batches = getConsolidatedBatches(chatIdStr);
+    const activeBatchFiles = batches
+        .filter(b => b.completed < b.totalFiles)
+        .reduce((sum, b) => sum + (b.totalFiles - b.completed), 0);
+
+    const count = activeFilesCount + activeBatchFiles;
+
+    const logLine = `[TG][silent][${Date.now()}] fileCount chat=${chatIdStr}: activeFiles=${activeFilesCount} activeBatchFiles=${activeBatchFiles} => total=${count}\n`;
     console.log(logLine.trim());
     try { fs.appendFileSync('tg_silent_debug.log', logLine); } catch (e) { }
 
@@ -519,6 +521,18 @@ function getOutstandingTaskCount(chatIdStr: string): number {
 /** Check if this is a start of a new session and cleanup old statuses */
 async function checkAndResetSession(client: TelegramClient, chatId: Api.TypeEntityLike) {
     const chatIdStr = chatId.toString();
+
+    // 增强：如果当前没有任何正在进行的任务，但却残留了静默模式标志，强制清理它
+    // 这能解决因重启或异常导致的“僵尸”静默会话问题
+    const outstanding = getOutstandingTaskCount(chatIdStr);
+    if (outstanding === 0 && silentSessionMap.has(chatIdStr)) {
+        silentSessionMap.delete(chatIdStr);
+        silentNoticeMessageIdMap.delete(chatIdStr);
+        lastSilentNotificationTimeMap.delete(chatIdStr);
+        console.log(`[TG][silent] Auto-cleared zombie session for ${chatIdStr}`);
+        return; // 清理后直接返回，让后续逻辑正常按非静默处理
+    }
+
     if (silentSessionMap.has(chatIdStr)) {
         if (process.env.TG_STATUS_DEBUG === '1') {
             console.log(`[TG][status] reset-skip chat=${chatIdStr} reason=silentSession`);
