@@ -655,41 +655,41 @@ function extractFileInfo(message: Api.Message): { fileName: string; mimeType: st
         if (message.document) {
             const doc = message.document as Api.Document;
             const fileNameAttr = doc.attributes?.find((a: any) => a.className === 'DocumentAttributeFilename') as any;
-            fileName = fileNameAttr?.fileName || `file_${Date.now()}`;
+            fileName = fileNameAttr?.fileName || `file_${message.id}`;
             mimeType = doc.mimeType || getMimeTypeFromFilename(fileName);
 
             // 如果是音频/视频但没有文件名属性，尝试根据类型生成
             if (fileName.startsWith('file_')) {
                 const videoAttr = doc.attributes?.find((a: any) => a.className === 'DocumentAttributeVideo');
                 const audioAttr = doc.attributes?.find((a: any) => a.className === 'DocumentAttributeAudio');
-                if (videoAttr) fileName = `video_${Date.now()}.mp4`;
-                else if (audioAttr) fileName = `audio_${Date.now()}.mp3`;
+                if (videoAttr) fileName = `video_${message.id}.mp4`;
+                else if (audioAttr) fileName = `audio_${message.id}.mp3`;
             }
         } else if (message.photo) {
-            fileName = `photo_${Date.now()}.jpg`;
+            fileName = `photo_${message.id}.jpg`;
             mimeType = 'image/jpeg';
         } else if (message.video) {
             const video = message.video as Api.Document;
             const fileNameAttr = video.attributes?.find((a: any) => a.className === 'DocumentAttributeFilename') as any;
-            fileName = fileNameAttr?.fileName || `video_${Date.now()}.mp4`;
+            fileName = fileNameAttr?.fileName || `video_${message.id}.mp4`;
             mimeType = video.mimeType || 'video/mp4';
         } else if (message.audio) {
             const audio = message.audio as Api.Document;
             const fileNameAttr = audio.attributes?.find((a: any) => a.className === 'DocumentAttributeFilename') as any;
-            fileName = fileNameAttr?.fileName || `audio_${Date.now()}.mp3`;
+            fileName = fileNameAttr?.fileName || `audio_${message.id}.mp3`;
             mimeType = audio.mimeType || 'audio/mpeg';
         } else if (message.voice) {
-            fileName = `voice_${Date.now()}.ogg`;
+            fileName = `voice_${message.id}.ogg`;
             mimeType = 'audio/ogg';
         } else if (message.sticker) {
-            fileName = `sticker_${Date.now()}.webp`;
+            fileName = `sticker_${message.id}.webp`;
             mimeType = 'image/webp';
         } else {
             const media = message.media as any;
             if (media.document && media.document instanceof Api.Document) {
                 const doc = media.document;
                 const fileNameAttr = doc.attributes?.find((a: any) => a.className === 'DocumentAttributeFilename') as any;
-                fileName = fileNameAttr?.fileName || `file_${Date.now()}`;
+                fileName = fileNameAttr?.fileName || `file_${message.id}`;
                 mimeType = doc.mimeType || getMimeTypeFromFilename(fileName);
             } else {
                 return null;
@@ -920,7 +920,7 @@ async function processBatchUpload(client: TelegramClient, mediaGroupId: string):
     const batchId = mediaGroupId;
 
     if (!folderName) {
-        folderName = new Date().toISOString().replace(/[:.]/g, '-');
+        folderName = mediaGroupId;
     }
 
     // 新会话重置检查

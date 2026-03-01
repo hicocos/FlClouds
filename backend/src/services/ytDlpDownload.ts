@@ -2,7 +2,6 @@ import { Api } from 'telegram';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
-import { v4 as uuidv4 } from 'uuid';
 import os from 'os';
 import { query } from '../db/index.js';
 import { storageManager } from './storage.js';
@@ -136,7 +135,7 @@ async function uploadDownloadedFile(localFilePath: string, originalFileName: str
 
     const safeName = sanitizeFilename(originalFileName);
     const ext = path.extname(safeName) || path.extname(localFilePath) || '';
-    const storedName = `${uuidv4()}${ext}`;
+    const storedName = safeName;
     const mimeType = getMimeTypeFromFilename(safeName);
     const fileType = getFileType(mimeType);
 
@@ -172,7 +171,7 @@ async function uploadDownloadedFile(localFilePath: string, originalFileName: str
 
 export async function handleYtDlpCommand(message: Api.Message, url: string): Promise<void> {
     const task: YtDlpTask = {
-        id: uuidv4(),
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         url,
         status: 'pending',
         createdAt: Date.now(),
