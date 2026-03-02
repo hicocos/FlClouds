@@ -482,30 +482,41 @@ export class OneDriveStorageProvider implements IStorageProvider {
      */
     private async ensureFolderExists(token: string): Promise<void> {
         try {
-            await axios.get(
-                `https://graph.microsoft.com/v1.0/me/drive/root:/${this.ONEDRIVE_FOLDER}`,
-                { headers: { 'Authorization': `Bearer ${token}` } }
-            );
+            // 使用标准的路径寻址格式，并在末尾添加冒号确保路径闭合
+            const endpoint = `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeURIComponent(this.ONEDRIVE_FOLDER)}:`;
+            await axios.get(endpoint, {
+                headers: { 'Authorization': `Bearer ${token}` },
+                timeout: 30000
+            });
         } catch (error: any) {
             if (error.response?.status === 404) {
                 console.log('[OneDrive] Creating storage folder:', this.ONEDRIVE_FOLDER);
-                await axios.post(
-                    `https://graph.microsoft.com/v1.0/me/drive/root/children`,
-                    {
-                        name: this.ONEDRIVE_FOLDER,
-                        folder: {},
-                        "@microsoft.graph.conflictBehavior": "fail"
-                    },
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
+                try {
+                    await axios.post(
+                        `https://graph.microsoft.com/v1.0/me/drive/root/children`,
+                        {
+                            name: this.ONEDRIVE_FOLDER,
+                            folder: {},
+                            "@microsoft.graph.conflictBehavior": "fail"
+                        },
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            timeout: 30000
                         }
-                    }
-                );
-                console.log('[OneDrive] Storage folder created successfully');
+                    );
+                    console.log('[OneDrive] Storage folder created successfully');
+                } catch (postError: any) {
+                    const errorDetails = postError.response?.data?.error || postError.message;
+                    console.error('[OneDrive] Create folder failed:', errorDetails);
+                    throw new Error(`OneDrive failed to create folder: ${JSON.stringify(errorDetails)}`);
+                }
             } else {
-                throw error;
+                const errorDetails = error.response?.data?.error || error.message;
+                console.error('[OneDrive] Check folder failed:', errorDetails);
+                throw new Error(`OneDrive folder check failed (Status ${error.response?.status}): ${JSON.stringify(errorDetails)}`);
             }
         }
     }
