@@ -1407,8 +1407,9 @@ export class StorageManager {
 
             await this.addOneDriveAccount(finalName, clientId, clientSecret, refreshToken, tenantId);
 
-            // 清除 pending name
-            await query("DELETE FROM system_settings WHERE key = 'onedrive_pending_name'");
+            // 关键修复：一旦账户成功进入 storage_accounts 表，清理所有临时/旧设置，防止启动时触发 migrateLegacyConfig
+            console.log('[StorageManager] Cleaning up temporary settings after successful account add/update...');
+            await query("DELETE FROM system_settings WHERE key IN ('onedrive_client_id', 'onedrive_client_secret', 'onedrive_refresh_token', 'onedrive_tenant_id', 'onedrive_pending_name')");
 
             // 自动开启新账户
             const res = await query('SELECT id FROM storage_accounts WHERE type = $1 ORDER BY created_at DESC LIMIT 1', ['onedrive']);
