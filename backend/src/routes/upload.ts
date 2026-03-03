@@ -9,6 +9,7 @@ import { validateApiKey } from '../middleware/apiKey.js';
 import { generateThumbnail, getImageDimensions } from '../utils/thumbnail.js';
 import { storageManager } from '../services/storage.js';
 import { getSignedUrl } from '../middleware/signedUrl.js';
+import { getUniqueStoredName } from '../utils/fileUtils.js';
 
 const router = Router();
 
@@ -72,7 +73,10 @@ const handleUpload = async (req: Request, res: Response, source: string = 'web')
     const mimeType = file.mimetype;
     const size = file.size;
     const tempPath = path.resolve(file.path);
-    const storedName = file.filename;
+
+    // 3. 生成唯一的存储文件名
+    const activeAccountId = storageManager.getActiveAccountId();
+    const storedName = await getUniqueStoredName(originalName, folder || null, activeAccountId);
 
     console.log(`[Upload] 📁 Received file: ${originalName} (${mimeType}, ${size} bytes)`);
     console.log(`[Upload] 🏠 Local temp path: ${tempPath}`);
@@ -80,7 +84,6 @@ const handleUpload = async (req: Request, res: Response, source: string = 'web')
     try {
         // 1. 获取当前存储提供商
         const provider = storageManager.getProvider();
-        const activeAccountId = storageManager.getActiveAccountId();
         console.log(`[Upload] 🛠️  Current storage provider: ${provider.name}, activeAccountId: ${activeAccountId || 'none (local)'}`);
 
         // 2. 在保存到永久存储前生成缩略图和获取尺寸

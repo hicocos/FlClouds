@@ -6,6 +6,7 @@ import { query } from '../db/index.js';
 import { generateThumbnail, getImageDimensions } from '../utils/thumbnail.js';
 import { storageManager } from '../services/storage.js';
 import { getSignedUrl } from '../middleware/signedUrl.js';
+import { getUniqueStoredName } from '../utils/fileUtils.js';
 
 const router = Router();
 
@@ -195,8 +196,9 @@ router.post('/complete', async (req: Request, res: Response) => {
         }
 
         // 合并分块
-        const ext = path.extname(session.filename);
-        const storedName = `${uuidv4()}${ext}`;
+        // 生成唯一的存储文件名
+        const activeAccountId = storageManager.getActiveAccountId();
+        const storedName = await getUniqueStoredName(session.filename, session.folder || null, activeAccountId);
         const finalPath = path.resolve(path.join(UPLOAD_DIR, storedName));
         const writeStream = fs.createWriteStream(finalPath);
 
@@ -246,7 +248,6 @@ router.post('/complete', async (req: Request, res: Response) => {
         // 6. 保存到永久存储
         let storedPath = '';
         const provider = storageManager.getProvider();
-        const activeAccountId = storageManager.getActiveAccountId();
         console.log(`[ChunkedComplete] 🛠️  Provider: ${provider.name}, accountId: ${activeAccountId || 'none (local)'}`);
         try {
             storedPath = await provider.saveFile(finalPath, storedName, session.mimeType);

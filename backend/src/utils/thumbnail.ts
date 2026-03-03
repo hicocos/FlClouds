@@ -2,6 +2,7 @@ import path from 'path';
 import sharp from 'sharp';
 import ffmpeg from 'fluent-ffmpeg';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const THUMBNAIL_DIR = path.resolve(process.env.THUMBNAIL_DIR || './data/thumbnails');
 
@@ -16,7 +17,7 @@ if (!fs.existsSync(THUMBNAIL_DIR)) {
  */
 export async function generateThumbnail(filePath: string, storedName: string, mimeType: string): Promise<string | null> {
     const absFilePath = path.resolve(filePath);
-    const thumbName = `thumb_${path.parse(storedName).name}.webp`;
+    const thumbName = `thumb_${crypto.randomUUID()}.webp`;
     const thumbPath = path.join(THUMBNAIL_DIR, thumbName);
 
     console.log(`[Thumbnail] 🚀 Starting generation for: ${storedName}`);

@@ -7,6 +7,7 @@ import { query } from '../db/index.js';
 import { storageManager } from './storage.js';
 import { formatBytes, getFileType, getMimeTypeFromFilename, sanitizeFilename } from '../utils/telegramUtils.js';
 import { generateThumbnail, getImageDimensions } from '../utils/thumbnail.js';
+import { getUniqueStoredName } from '../utils/fileUtils.js';
 
 type YtDlpTaskStatus = 'pending' | 'active' | 'success' | 'failed';
 
@@ -136,7 +137,10 @@ async function uploadDownloadedFile(localFilePath: string, originalFileName: str
 
     const safeName = sanitizeFilename(originalFileName);
     const ext = path.extname(safeName) || path.extname(localFilePath) || '';
-    const storedName = safeName;
+
+    // 获取唯一的存储文件名
+    const storedName = await getUniqueStoredName(safeName, 'ytdlp', activeAccountId);
+
     const mimeType = getMimeTypeFromFilename(safeName);
     const fileType = getFileType(mimeType);
 
