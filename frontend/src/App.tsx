@@ -527,9 +527,6 @@ function App() {
 
   const filteredFiles = useMemo(() => {
     return files.filter(file => {
-      // 过滤掉用于表示空文件夹的占位记录
-      if (file.name === '.folder') return false;
-
       const matchesCategory =
         currentCategory === "favorites" ||
         currentCategory === "all" ||
@@ -607,8 +604,8 @@ function App() {
   // 没有文件夹的散文件
   const looseFiles = useMemo(() => {
     const files = currentCategory === 'ytdlp'
-      ? filteredFiles
-      : filteredFiles.filter(file => !file.folder);
+      ? filteredFiles.filter(file => file.name !== '.folder')
+      : filteredFiles.filter(file => !file.folder && file.name !== '.folder');
 
     // 排序逻辑
     return files.sort((a, b) => {
@@ -627,7 +624,7 @@ function App() {
   // 当前显示的文件（在文件夹内时显示该文件夹的文件）
   const displayFiles = useMemo(() => {
     if (currentFolder) {
-      return filteredFiles.filter(file => file.folder === currentFolder);
+      return filteredFiles.filter(file => file.folder === currentFolder && file.name !== '.folder');
     }
     return looseFiles;
   }, [currentFolder, filteredFiles, looseFiles]);
