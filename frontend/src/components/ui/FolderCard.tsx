@@ -53,9 +53,11 @@ export const FolderCard = ({
     const coverFile = folder.coverFile;
     const thumbnailSrc = coverFile?.thumbnailUrl || (coverFile?.type === 'image' ? coverFile?.previewUrl : undefined);
 
-    // 统计各类型文件数量
+    // 统计各类型文件数量（排除占位文件）
     const typeCounts = folder.files.reduce((acc, file) => {
-        acc[file.type] = (acc[file.type] || 0) + 1;
+        if (file.name !== '.folder') {
+            acc[file.type] = (acc[file.type] || 0) + 1;
+        }
         return acc;
     }, {} as Record<string, number>);
 
@@ -131,11 +133,13 @@ export const FolderCard = ({
                         </div>
                     )}
 
-                    {/* 左上角：文件夹图标徽章 */}
-                    <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md rounded-full px-2.5 py-1 flex items-center gap-1.5 shadow-sm border border-white/10 transition-transform group-hover:scale-105">
-                        <Folder className="h-3.5 w-3.5 text-white/90" />
-                        <span className="text-xs font-medium text-white/90 tabular-nums">{folder.fileCount}</span>
-                    </div>
+                    {/* 左上角：文件夹图标徽章 - 仅在有文件时显示 */}
+                    {folder.fileCount > 0 && (
+                        <div className="absolute top-2.5 left-2.5 bg-black/60 backdrop-blur-md rounded-full px-2.5 py-1 flex items-center gap-1.5 shadow-sm border border-white/10 transition-transform group-hover:scale-105">
+                            <Folder className="h-3.5 w-3.5 text-white/90" />
+                            <span className="text-xs font-medium text-white/90 tabular-nums">{folder.fileCount}</span>
+                        </div>
+                    )}
 
                     {/* 右下角：文件类型指示器 */}
                     {!isSelectionMode && (
