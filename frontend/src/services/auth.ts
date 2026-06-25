@@ -57,10 +57,11 @@ class AuthService {
     async checkPasswordRequired(): Promise<boolean> {
         try {
             const response = await fetch(`${API_BASE}/api/auth/status`);
+            if (!response.ok) return true;
             const data = await response.json();
-            return data.passwordRequired;
+            return data.passwordRequired !== false;
         } catch {
-            return false;
+            return true;
         }
     }
 

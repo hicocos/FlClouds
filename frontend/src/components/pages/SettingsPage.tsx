@@ -72,6 +72,8 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
         accounts: any[];
         redirectUri: string;
         googleDriveRedirectUri?: string;
+        telegramUserDownloadEnabled?: boolean;
+        telegramUserSessionReady?: boolean;
     } | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [showOneDriveForm, setShowOneDriveForm] = useState(false);
@@ -122,18 +124,28 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
     const [activationCode, setActivationCode] = useState("");
     const [isActivating2FA, setIsActivating2FA] = useState(false);
 
+    // Telegram User Download State
+    const [showTelegramUserDownload, setShowTelegramUserDownload] = useState(false);
+
+    const reloadStorageConfig = async () => {
+        const data = await fileApi.getStorageConfig();
+        setConfig(data);
+        setShowTelegramUserDownload(!!data.telegramUserDownloadEnabled);
+        return data;
+    };
+
     // Load initial config
     useEffect(() => {
         const loadConfig = async () => {
             try {
-                const data = await fileApi.getStorageConfig();
-                setConfig(data);
+                await reloadStorageConfig();
             } catch (error) {
                 console.error("Failed to load storage config:", error);
             }
         };
         loadConfig();
     }, []);
+
 
     const handleSwitchProvider = async (provider: 'local' | 'onedrive' | 'aliyun_oss' | 's3' | 'webdav' | 'google_drive', accountId?: string) => {
         if (isSaving) return;
@@ -222,18 +234,37 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
             const left = window.screenX + (window.innerWidth - width) / 2;
             const top = window.screenY + (window.innerHeight - height) / 2;
 
-            window.open(authUrl, 'GoogleDriveAuth', `width=${width},height=${height},left=${left},top=${top},status=yes,toolbar=no,menubar=no`);
+            const authWindow = window.open(authUrl, 'GoogleDriveAuth', `width=${width},height=${height},left=${left},top=${top},status=yes,toolbar=no,menubar=no`);
+            if (!authWindow) {
+                throw new Error('授权窗口被浏览器拦截，请允许弹窗后重试');
+            }
+
+            let authHandled = false;
+            const finishGoogleDriveAuth = async (showAlert: boolean) => {
+                if (authHandled) return;
+                authHandled = true;
+                window.removeEventListener('message', messageHandler);
+                window.clearInterval(authWindowPoll);
+                await reloadStorageConfig();
+                setShowGDForm(false);
+                if (showAlert) {
+                    alert("Google Drive 授权成功并已启用！");
+                }
+            };
 
             const messageHandler = async (event: MessageEvent) => {
                 if (event.data === 'google_drive_auth_success') {
-                    const newData = await fileApi.getStorageConfig();
-                    setConfig(newData);
-                    alert("Google Drive 授权成功并已启用！");
-                    setShowGDForm(false);
-                    window.removeEventListener('message', messageHandler);
+                    await finishGoogleDriveAuth(true);
                 }
             };
             window.addEventListener('message', messageHandler);
+
+            const authWindowPoll = window.setInterval(async () => {
+                if (authHandled) return;
+                if (authWindow.closed) {
+                    await finishGoogleDriveAuth(false);
+                }
+            }, 1000);
         } catch (error: any) {
             alert("发起授权失败: " + error.message);
         } finally {
@@ -563,6 +594,124 @@ export const SettingsPage = ({ storageStats }: SettingsPageProps) => {
                                         <p className="text-sm">{twoFAError || "无法加载 2FA 信息"}</p>
                                     </div>
                                 )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </SettingsSection>
+
+            {/* Telegram Download Section */}
+            <SettingsSection title="Telegram 下载设置">
+                <div className="p-4 bg-muted/20 border-b border-border/50">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-muted text-muted-foreground">
+                                <Cloud className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-sm font-medium">账号级下载器</span>
+                                    {!showTelegramUserDownload ? (
+                                        <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[11px] font-medium">未启用</span>
+                                    ) : config?.telegramUserSessionReady ? (
+                                        <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 text-[11px] font-semibold">已开启</span>
+                                    ) : (
+                                        <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px] font-semibold">session 未就绪</span>
+                                    )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">开启后，文件下载优先走已登录的 Telegram 用户账号 session</p>
+                            </div>
+                        </div>
+                        <Button
+                            size="sm"
+                            variant={showTelegramUserDownload ? "default" : "outline"}
+                            onClick={async () => {
+                                if (isSaving) return;
+                                const nextEnabled = !showTelegramUserDownload;
+                                setIsSaving(true);
+                                try {
+                                    await fileApi.setTelegramUserDownloadEnabled(nextEnabled);
+                                    const refreshedConfig = await fileApi.getStorageConfig();
+                                    setConfig(refreshedConfig);
+                                    setShowTelegramUserDownload(!!refreshedConfig.telegramUserDownloadEnabled);
+                                } catch (error: any) {
+                                    alert(error.message || '更新 Telegram 下载设置失败');
+                                } finally {
+                                    setIsSaving(false);
+                                }
+                            }}
+                        >
+                            {showTelegramUserDownload ? "停用账号级下载" : "启用账号级下载"}
+                        </Button>
+                    </div>
+                </div>
+
+                <AnimatePresence>
+                    {showTelegramUserDownload && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="bg-muted/30 border-t border-border/50 overflow-hidden"
+                        >
+                            <div className="p-6 space-y-5">
+                                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-2">
+                                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">这项功能需要你先准备用户账号 session</p>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        1. 申请 Telegram 的 <code className="px-1 py-0.5 rounded bg-muted">api_id</code> 和 <code className="px-1 py-0.5 rounded bg-muted">api_hash</code>
+                                        <br />2. 运行 <code className="px-1 py-0.5 rounded bg-muted">npm run login:telegram-user</code> 生成 session 文件
+                                        <br />3. 在后端环境变量里填写 <code className="px-1 py-0.5 rounded bg-muted">TELEGRAM_USER_API_ID</code>、<code className="px-1 py-0.5 rounded bg-muted">TELEGRAM_USER_API_HASH</code>、<code className="px-1 py-0.5 rounded bg-muted">TELEGRAM_USER_SESSION_FILE</code>
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">TELEGRAM_USER_API_ID</label>
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            className="w-full px-3 py-2 rounded-lg border border-border bg-muted/40 text-sm outline-none"
+                                            placeholder="在 .env 中配置"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">TELEGRAM_USER_API_HASH</label>
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            className="w-full px-3 py-2 rounded-lg border border-border bg-muted/40 text-sm outline-none"
+                                            placeholder="在 .env 中配置"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-sm font-medium">TELEGRAM_USER_SESSION_FILE</label>
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            className="w-full px-3 py-2 rounded-lg border border-border bg-muted/40 text-sm outline-none"
+                                            placeholder="./data/telegram_user_session.txt"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-3">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => window.open('https://my.telegram.org', '_blank', 'noopener,noreferrer')}
+                                    >
+                                        打开 Telegram API 页面
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => window.open('https://core.telegram.org/bots/api#getfile', '_blank', 'noopener,noreferrer')}
+                                    >
+                                        查看参考文档
+                                    </Button>
+                                </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                    提示：启用后，只有已登录的用户账号 session 会参与下载；如果 session 未准备好，下载会报错并停止，避免悄悄回退到旧逻辑。
+                                </p>
                             </div>
                         </motion.div>
                     )}

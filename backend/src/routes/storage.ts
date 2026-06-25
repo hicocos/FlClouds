@@ -4,7 +4,10 @@ import { query } from '../db/index.js';
 import { requireAuth } from './auth.js';
 import os from 'os';
 import path from 'path';
+import fs from 'fs';
 import axios from 'axios';
+import { getSetting, setSetting } from '../utils/settings.js';
+import { getTelegramUserSessionFilePath, isTelegramUserClientReady } from '../services/telegramUserClient.js';
 
 // ESM compatibility
 const checkDiskSpace = (checkDiskSpaceModule as any).default || checkDiskSpaceModule;
@@ -128,6 +131,9 @@ router.get('/config', requireAuth, async (req: Request, res: Response) => {
 
         // 获取所有账户概览（不包含敏感配置）
         const accounts = await storageManager.getAccounts();
+        const telegramUserDownloadEnabled = await getSetting('telegram_user_download_enabled', 'false');
+        const telegramUserSessionFilePath = getTelegramUserSessionFilePath();
+        const telegramUserSessionReady = fs.existsSync(telegramUserSessionFilePath) && isTelegramUserClientReady();
 
         const redirectUri = getOneDriveRedirectUri(req);
 
@@ -137,10 +143,26 @@ router.get('/config', requireAuth, async (req: Request, res: Response) => {
             accounts,
             redirectUri,
             googleDriveRedirectUri: getGoogleDriveRedirectUri(req),
+            telegramUserDownloadEnabled: telegramUserDownloadEnabled === 'true',
+            telegramUserSessionReady,
         });
     } catch (error) {
         console.error('获取存储配置失败:', error);
         res.status(500).json({ error: '获取存储配置失败' });
+    }
+});
+
+router.post('/config/telegram-user-download', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const enabled = !!req.body?.enabled;
+        if (enabled && !isTelegramUserClientReady()) {
+            return res.status(400).json({ error: 'Telegram 用户 session 未就绪，请先生成 session 并重启后端' });
+        }
+        await setSetting('telegram_user_download_enabled', enabled ? 'true' : 'false');
+        res.json({ success: true, enabled });
+    } catch (error) {
+        console.error('更新 Telegram 用户下载设置失败:', error);
+        res.status(500).json({ error: '更新 Telegram 用户下载设置失败' });
     }
 });
 
@@ -310,7 +332,7 @@ router.get('/google-drive/callback', async (req: Request, res: Response) => {
             return res.send('缺少授权码 (code)');
         }
 
-        const { storageManager, GoogleDriveStorageProvider } = await import('../services/storage.js');
+        const { storageManager, GoogleDriveStorageProvider, StorageManager } = await import('../services/storage.js');
         const clientId = await storageManager.getSetting('google_drive_client_id');
         const clientSecret = await storageManager.getSetting('google_drive_client_secret') || '';
         const redirectUri = await storageManager.getSetting('google_drive_redirect_uri') || getGoogleDriveRedirectUri(req);
@@ -327,7 +349,7 @@ router.get('/google-drive/callback', async (req: Request, res: Response) => {
 
         // 获取待处理的账户名称并清理
         const pendingName = await storageManager.getSetting('google_drive_pending_name');
-        await storageManager.updateSetting('google_drive_pending_name', '');
+        await StorageManager.updateSetting('google_drive_pending_name', '');
 
         // 保存账户
         await storageManager.addGoogleDriveAccount(pendingName || 'Google Drive Account', clientId, clientSecret, tokens.refresh_token, redirectUri);
@@ -347,12 +369,16 @@ router.get('/google-drive/callback', async (req: Request, res: Response) => {
                         <p style="color: #15803d; margin-bottom: 20px;">Google Drive 已成功连接并启用。</p>
                         <button onclick="window.close()" style="padding: 10px 20px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer;">关闭此窗口</button>
                         <script>
-                            setTimeout(() => {
+                            const notifyParent = () => {
                                 if (window.opener) {
                                     window.opener.postMessage('google_drive_auth_success', '*');
                                 }
+                            };
+                            notifyParent();
+                            setTimeout(() => {
+                                notifyParent();
                                 window.close();
-                            }, 3000);
+                            }, 1200);
                         </script>
                     </div>
                 </body>

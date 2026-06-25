@@ -47,7 +47,7 @@ docker build --build-arg VITE_API_URL=https://your-api.example.com -t foomclous-
 docker build -t foomclous-backend ./backend
 
 # 启动服务
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 > [!IMPORTANT]
@@ -69,12 +69,31 @@ docker compose -f docker-compose.prod.yml up -d
 | `TELEGRAM_BOT_TOKEN` | (可选) Telegram Bot Token | `123456:ABC-DEF...` |
 | `TELEGRAM_API_ID` | (可选) Telegram API ID | `123456` |
 | `TELEGRAM_API_HASH` | (可选) Telegram API Hash | `abcdef123456...` |
+| `TELEGRAM_USER_API_ID` | 用户账号下载器 API ID | `123456` |
+| `TELEGRAM_USER_API_HASH` | 用户账号下载器 API Hash | `abcdef123456...` |
+| `TELEGRAM_USER_SESSION_FILE` | 用户账号 session 文件 | `/data/telegram_user_session.txt` |
+| `TELEGRAM_DOWNLOAD_BRIDGE_CHAT_ID` | 可选，桥接群/频道 ID；配置后支持多人把文件私聊发给 bot，再由 bot 转发到桥接聊天供用户账号下载 | `-1001234567890` |
+| `TELEGRAM_DOWNLOAD_WORKERS` | Telegram 并发下载 worker 数；单请求仍受 Telegram 512KB 上限约束 | `4` |
 
 ---
 
 ## 🤖 Telegram Bot 配置指南
 
 集成 Telegram Bot 后，你可以通过聊天窗口直接上传文件、管理云端数据。
+
+### 用户账号下载器（可选）
+
+如果你希望下载由 Telegram 用户账号执行，而不是 bot 账号执行，可以启用用户账号下载器。它会使用一个已登录的 Telegram 用户 session 作为下载通道，bot 继续负责命令和状态展示。
+
+1. 使用 `npm run login:telegram-user` 生成 `TELEGRAM_USER_SESSION_FILE`
+2. 在 `.env` 中配置 `TELEGRAM_USER_API_ID`、`TELEGRAM_USER_API_HASH`、`TELEGRAM_USER_SESSION_FILE`
+3. 启动后端后，在网页设置中开启“账号级下载器”。开启时会检查 session 是否就绪；如果 session 未准备好会拒绝开启，避免悄悄回退到旧逻辑
+
+> 单人自用可以直接把文件发给 bot：请确保生成 session 的那个用户账号本身能看到 bot 私聊里的媒体消息。
+>
+> 多人使用建议配置 `TELEGRAM_DOWNLOAD_BRIDGE_CHAT_ID`：把 bot 和用户账号都加入同一个群/频道，并让 bot 有发消息权限。配置后，用户仍然可以私聊把文件发给 bot；bot 会自动转发到桥接聊天，用户账号再从桥接聊天下载，避免跨用户私聊消息不可见导致 `FILE_REFERENCE_EXPIRED`。
+>
+> 下载速度可用 `TELEGRAM_DOWNLOAD_WORKERS` 调整并发数。Telegram 单次 `upload.getFile` 请求最大约 512KB，不能直接改成 50MB/100MB；并发 worker 会按不同 offset 同时拉取 512KB 分片再写回同一个文件。建议先用 `4` 或 `8`，过高可能触发 Telegram 限流或导致线路抖动。
 
 ### 1. 获取 Bot Token
 1. 在 Telegram 中搜索 [@BotFather](https://t.me/BotFather) 并开始对话。
@@ -104,6 +123,8 @@ docker compose -f docker-compose.prod.yml up -d
 | `/storage` | 查看当前服务器磁盘与存储统计 |
 | `/list` | 查看最近上传的文件列表 |
 | `/tasks` | 查看当前传输任务队列 (包含下载进度) |
+| `/stop_tasks` | 强制停止所有下载任务 |
+| `/download_workers` | 打开并发下载调参面板 (4 / 8 / 12 / 16) |
 | `/delete <ID>` | 删除指定文件 (支持 ID 前缀) |
 | `/ytdlp <url>` | 解析视频链接并下载到存储源 (yt-dlp) |
 
@@ -144,6 +165,18 @@ docker compose -f docker-compose.prod.yml up -d
 - 需要已通过 `/start` 验证身份。
 - 链接必须以 `http://` 或 `https://` 开头。
 - 下载后的文件会自动入库并生成缩略图，在前端 `ytdlp` 文件夹中可见。
+
+### ⚙️ Telegram 并发下载调参
+
+如果你在 Telegram Bot 菜单里打开 `/download_workers`，会看到 4 / 8 / 12 / 16 四档。
+
+- `4`：默认推荐，稳定优先
+- `8`：更均衡，适合日常大文件
+- `12` / `16`：激进模式，**需要二次确认**，可能更容易遇到 Telegram 风控、断流、限速，甚至账号风险
+
+注意：Telegram 单次 `upload.getFile` 请求上限仍然是 **512KB**。这里调的是**并发分片数**，不是单请求大小。
+
+如果你改了 `.env` 里的 `TELEGRAM_DOWNLOAD_WORKERS`，建议重启后端容器；如果只是通过 bot 菜单修改，设置会写入数据库并立即生效。
 
 ---
 
@@ -249,7 +282,7 @@ FoomClous/
 ├── frontend/    # React 网页前端
 ├── backend/     # Node.js API 服务
 ├── init.sql     # 数据库初始化脚本
-└── docker-compose.prod.yml  # 生产环境部署配置
+└── docker-compose.yml  # Docker 部署配置
 ```
 
 ---

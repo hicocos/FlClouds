@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   # 前端（暴露到宿主机供 Nginx 反代）
   frontend:
-    image: cxaryoro/foomclous-frontend
+    image: foomclous-frontend:latest
     build:
       context: ./frontend
       args:
@@ -17,7 +15,7 @@ services:
 
   # 后端（暴露到宿主机供 Nginx 反代）
   backend:
-    image: cxaryoro/foomclous-backend
+    image: foomclous-backend:latest
     build: ./backend
     container_name: foomclous-backend
     ports:
@@ -38,6 +36,11 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_API_ID=${TELEGRAM_API_ID:-}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH:-}
+      - TELEGRAM_USER_API_ID=${TELEGRAM_USER_API_ID:-}
+      - TELEGRAM_USER_API_HASH=${TELEGRAM_USER_API_HASH:-}
+      - TELEGRAM_USER_SESSION_FILE=${TELEGRAM_USER_SESSION_FILE:-/data/telegram_user_session.txt}
+      - TELEGRAM_DOWNLOAD_BRIDGE_CHAT_ID=${TELEGRAM_DOWNLOAD_BRIDGE_CHAT_ID:-}
+      - TELEGRAM_DOWNLOAD_WORKERS=${TELEGRAM_DOWNLOAD_WORKERS:-4}
       - TOTP_SECRET=${TOTP_SECRET:-}
     volumes:
       - file-storage:/data

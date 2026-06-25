@@ -332,12 +332,28 @@ class FileAPI {
         accounts: StorageAccount[];
         redirectUri: string;
         googleDriveRedirectUri: string;
+        telegramUserDownloadEnabled?: boolean;
+        telegramUserSessionReady?: boolean;
     }> {
         const response = await fetch(`${API_BASE}/api/storage/config`, {
             headers: getHeaders(),
         });
         if (response.status === 401) throw new Error('UNAUTHORIZED');
         if (!response.ok) throw new Error('获取存储配置失败');
+        return response.json();
+    }
+
+    async setTelegramUserDownloadEnabled(enabled: boolean): Promise<{ success: boolean; enabled: boolean }> {
+        const response = await fetch(`${API_BASE}/api/storage/config/telegram-user-download`, {
+            method: 'POST',
+            headers: getHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ enabled }),
+        });
+        if (response.status === 401) throw new Error('UNAUTHORIZED');
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || '更新 Telegram 用户下载设置失败');
+        }
         return response.json();
     }
 

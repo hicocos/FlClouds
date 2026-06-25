@@ -294,9 +294,9 @@ export function buildTasksReport(
         lines.push('');
         lines.push(`**🕒 最近完成** (前 5 个)`);
         history.slice(0, 5).forEach(task => {
-            const icon = task.status === 'success' ? '✅' : '❌';
+            const icon = task.status === 'success' ? '✅' : task.status === 'cancelled' ? '🛑' : '❌';
             lines.push(`  ${icon} ${task.fileName}`);
-            if (task.status === 'failed' && task.error) {
+            if ((task.status === 'failed' || task.status === 'cancelled') && task.error) {
                 lines.push(`      原因: ${task.error}`);
             }
         });

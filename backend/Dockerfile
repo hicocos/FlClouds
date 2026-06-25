@@ -12,7 +12,8 @@ RUN npm install
 
 # 复制源代码并构建
 COPY . .
-RUN npm run build
+RUN npm run build \
+    && npx esbuild src/scripts/login_telegram_user.ts --bundle --platform=node --format=esm --outfile=dist/scripts/login_telegram_user.js --packages=external
 
 
 # Production stage

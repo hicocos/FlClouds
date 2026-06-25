@@ -32,6 +32,10 @@ async function migrate() {
             INSERT INTO system_settings (key, value)
             VALUES ('storage_provider', 'local')
             ON CONFLICT (key) DO NOTHING;
+
+            INSERT INTO system_settings (key, value)
+            VALUES ('telegram_user_download_enabled', 'false')
+            ON CONFLICT (key) DO NOTHING;
         `);
         console.log('Migration completed successfully.');
     } catch (error) {

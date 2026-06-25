@@ -7,7 +7,7 @@ import path from 'path';
 import { storageManager } from '../services/storage.js';
 import { authenticatedUsers, passwordInputState, isAuthenticated, loadAuthenticatedUsers, persistAuthenticatedUser, userStates, TelegramUserState } from './telegramState.js';
 import { is2FAEnabled, generateOTPAuthUrl, verifyTOTP, activate2FA } from '../utils/security.js';
-import { handleStart, handleHelp, handleStorage, handleList, handleDelete, handleTasks } from './telegramCommands.js';
+import { handleStart, handleHelp, handleStorage, handleList, handleDelete, handleTasks, handleStopTasks, handleDownloadWorkers, handleDownloadWorkersCallback } from './telegramCommands.js';
 import { handleFileUpload, handleCleanupCallback } from './telegramUpload.js';
 import { handleYtDlpCommand } from './ytDlpDownload.js';
 import { cleanupOrphanFiles, startPeriodicCleanup } from './orphanCleanup.js';
@@ -295,6 +295,8 @@ export async function initTelegramBot(): Promise<void> {
                     new Api.BotCommand({ command: 'storage', description: '查看存储统计' }),
                     new Api.BotCommand({ command: 'list', description: '查看上传记录' }),
                     new Api.BotCommand({ command: 'tasks', description: '查看任务状态' }),
+                    new Api.BotCommand({ command: 'stop_tasks', description: '强制停止下载任务' }),
+                    new Api.BotCommand({ command: 'download_workers', description: '设置 Telegram 并发下载' }),
                     new Api.BotCommand({ command: 'help', description: '显示预览帮助' }),
                 ]
             }));
@@ -469,6 +471,24 @@ export async function initTelegramBot(): Promise<void> {
                     return;
                 }
 
+                if (text === '/stop_tasks' || text === '/stop' || text === '/cancel_tasks') {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    await handleStopTasks(message);
+                    return;
+                }
+
+                if (text === '/download_workers' || text === '/workers') {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    await handleDownloadWorkers(message);
+                    return;
+                }
+
                 // Handle 2FA Verification (Setup or Login)
                 const userState = userStates.get(senderId);
                 if (userState && (userState.state === TelegramUserState.WAITING_2FA_SETUP || userState.state === TelegramUserState.WAITING_2FA_LOGIN)) {
@@ -514,10 +534,9 @@ export async function initTelegramBot(): Promise<void> {
 
                 // File Handling
                 if (message.media) {
+                    // 处理文件上传
                     await handleFileUpload(client, event);
-                    return;
                 }
-
                 // Unauthenticated User Text
                 if (!isAuthenticated(senderId) && text && !text.startsWith('/')) {
                     await message.reply({ message: MSG.UNKNOWN_TEXT });
@@ -542,6 +561,12 @@ export async function initTelegramBot(): Promise<void> {
                 // 处理垃圾缓存清理回调
                 if (data.startsWith('cleanup_')) {
                     await handleCleanupButtonCallback(callbackUpdate, data);
+                    return;
+                }
+
+                // 处理并发下载 worker 设置回调
+                if (data.startsWith('dw_')) {
+                    await handleDownloadWorkersCallback(client, callbackUpdate, data);
                     return;
                 }
             }

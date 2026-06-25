@@ -1,4 +1,4 @@
-import { Api } from 'telegram';
+import { Api, TelegramClient } from 'telegram';
 import { query } from '../db/index.js';
 import checkDiskSpaceModule from 'check-disk-space';
 import os from 'os';
@@ -14,11 +14,70 @@ import {
     buildDeleteSuccess,
 } from '../utils/telegramMessages.js';
 import { authenticatedUsers, passwordInputState, isAuthenticated } from './telegramState.js';
-import { getDownloadQueueStats, getTaskStatus } from './telegramUpload.js';
+import { forceStopDownloadTasks, getDownloadQueueStats, getTaskStatus } from './telegramUpload.js';
 import { storageManager } from './storage.js';
+import { getSetting, setSetting } from '../utils/settings.js';
 
 // ESM compatibility
 const checkDiskSpace = (checkDiskSpaceModule as any).default || checkDiskSpaceModule;
+const DOWNLOAD_WORKER_OPTIONS = [4, 8, 12, 16];
+
+function normalizeDownloadWorkers(value: unknown): number {
+    const parsed = parseInt(String(value ?? '4'), 10);
+    return DOWNLOAD_WORKER_OPTIONS.includes(parsed) ? parsed : 4;
+}
+
+async function getCurrentDownloadWorkers(): Promise<number> {
+    const value = await getSetting('telegram_download_workers', process.env.TELEGRAM_DOWNLOAD_WORKERS || '4');
+    return normalizeDownloadWorkers(value);
+}
+
+function buildDownloadWorkersKeyboard(current: number, confirmValue?: number): Api.ReplyInlineMarkup {
+    if (confirmValue) {
+        return new Api.ReplyInlineMarkup({
+            rows: [
+                new Api.KeyboardButtonRow({
+                    buttons: [
+                        new Api.KeyboardButtonCallback({ text: `⚠️ 确认使用 ${confirmValue}`, data: Buffer.from(`dw_confirm_${confirmValue}`) }),
+                        new Api.KeyboardButtonCallback({ text: '取消', data: Buffer.from('dw_cancel') }),
+                    ],
+                }),
+            ],
+        });
+    }
+
+    return new Api.ReplyInlineMarkup({
+        rows: [
+            new Api.KeyboardButtonRow({
+                buttons: [
+                    new Api.KeyboardButtonCallback({ text: `${current === 4 ? '✅ ' : ''}4`, data: Buffer.from('dw_set_4') }),
+                    new Api.KeyboardButtonCallback({ text: `${current === 8 ? '✅ ' : ''}8`, data: Buffer.from('dw_set_8') }),
+                ],
+            }),
+            new Api.KeyboardButtonRow({
+                buttons: [
+                    new Api.KeyboardButtonCallback({ text: `${current === 12 ? '✅ ' : ''}12 ⚠️`, data: Buffer.from('dw_set_12') }),
+                    new Api.KeyboardButtonCallback({ text: `${current === 16 ? '✅ ' : ''}16 ⚠️`, data: Buffer.from('dw_set_16') }),
+                ],
+            }),
+        ],
+    });
+}
+
+function buildDownloadWorkersText(current: number): string {
+    return [
+        '⚙️ **Telegram 并发下载设置**',
+        '',
+        `当前 worker 数：**${current}**`,
+        '',
+        '说明：Telegram 单次请求上限仍是 512KB，这里调整的是并发分片数量。',
+        '',
+        '建议：',
+        '- `4`：稳定优先',
+        '- `8`：速度/稳定平衡',
+        '- `12` / `16`：激进模式，可能触发风控、断流、限速，甚至账号风险，需要二次确认',
+    ].join('\n');
+}
 
 export async function handleStart(message: Api.Message, senderId: number): Promise<void> {
     if (isAuthenticated(senderId)) {
@@ -177,5 +236,111 @@ export async function handleTasks(message: Api.Message): Promise<void> {
     } catch (error) {
         console.error('🤖 获取任务列表失败:', error);
         await message.reply({ message: MSG.ERR_TASKS });
+    }
+}
+
+export async function handleStopTasks(message: Api.Message): Promise<void> {
+    try {
+        const result = forceStopDownloadTasks('用户通过 /stop_tasks 强制停止');
+        if (result.total === 0) {
+            await message.reply({ message: '📮 当前没有可停止的下载任务' });
+            return;
+        }
+
+        await message.reply({
+            message: `🛑 已发送停止指令\n\n处理中: ${result.active}\n等待中: ${result.pending}\n\n正在下载的任务会在当前分片结束后停止，并自动清理临时文件。`
+        });
+    } catch (error) {
+        console.error('🤖 强制停止任务失败:', error);
+        await message.reply({ message: `❌ 强制停止任务失败: ${(error as Error).message}` });
+    }
+}
+
+export async function handleDownloadWorkers(message: Api.Message): Promise<void> {
+    try {
+        const current = await getCurrentDownloadWorkers();
+        await message.reply({
+            message: buildDownloadWorkersText(current),
+            buttons: buildDownloadWorkersKeyboard(current),
+        });
+    } catch (error) {
+        console.error('🤖 获取并发下载设置失败:', error);
+        await message.reply({ message: `❌ 获取并发下载设置失败: ${(error as Error).message}` });
+    }
+}
+
+export async function handleDownloadWorkersCallback(client: TelegramClient, update: Api.UpdateBotCallbackQuery, data: string): Promise<void> {
+    const userId = update.userId.toJSNumber();
+    if (!isAuthenticated(userId)) {
+        await client.invoke(new Api.messages.SetBotCallbackAnswer({
+            queryId: update.queryId,
+            message: MSG.AUTH_REQUIRED,
+            alert: true,
+        }));
+        return;
+    }
+
+    try {
+        if (data === 'dw_cancel') {
+            const current = await getCurrentDownloadWorkers();
+            await client.editMessage(update.peer, {
+                message: update.msgId,
+                text: buildDownloadWorkersText(current),
+                buttons: buildDownloadWorkersKeyboard(current),
+            });
+            await client.invoke(new Api.messages.SetBotCallbackAnswer({ queryId: update.queryId, message: '已取消' }));
+            return;
+        }
+
+        const setMatch = data.match(/^dw_set_(4|8|12|16)$/);
+        if (setMatch) {
+            const workers = Number(setMatch[1]);
+            if (workers >= 12) {
+                await client.editMessage(update.peer, {
+                    message: update.msgId,
+                    text: [
+                        `⚠️ **确认使用 ${workers} workers？**`,
+                        '',
+                        '这是激进并发模式，可能出现：',
+                        '- Telegram 风控或限流',
+                        '- 下载断流 / 重试增多',
+                        '- user session 账号风险，极端情况下可能影响账号',
+                        '',
+                        '如果只是日常下载，建议使用 4 或 8。',
+                    ].join('\n'),
+                    buttons: buildDownloadWorkersKeyboard(workers, workers),
+                });
+                await client.invoke(new Api.messages.SetBotCallbackAnswer({ queryId: update.queryId, message: '需要二次确认' }));
+                return;
+            }
+
+            await setSetting('telegram_download_workers', String(workers));
+            await client.editMessage(update.peer, {
+                message: update.msgId,
+                text: `${buildDownloadWorkersText(workers)}\n\n✅ 已切换为 ${workers} workers，后续新下载任务立即生效。`,
+                buttons: buildDownloadWorkersKeyboard(workers),
+            });
+            await client.invoke(new Api.messages.SetBotCallbackAnswer({ queryId: update.queryId, message: `已设置为 ${workers}` }));
+            return;
+        }
+
+        const confirmMatch = data.match(/^dw_confirm_(12|16)$/);
+        if (confirmMatch) {
+            const workers = Number(confirmMatch[1]);
+            await setSetting('telegram_download_workers', String(workers));
+            await client.editMessage(update.peer, {
+                message: update.msgId,
+                text: `${buildDownloadWorkersText(workers)}\n\n⚠️ 已确认并切换为 ${workers} workers。若出现断流、限速、风控提示，请立即降回 4 或 8。`,
+                buttons: buildDownloadWorkersKeyboard(workers),
+            });
+            await client.invoke(new Api.messages.SetBotCallbackAnswer({ queryId: update.queryId, message: `已确认 ${workers} workers`, alert: true }));
+        }
+    } catch (error) {
+        console.error('🤖 设置并发下载 worker 失败:', error);
+        await client.invoke(new Api.messages.SetBotCallbackAnswer({
+            queryId: update.queryId,
+            message: `设置失败: ${(error as Error).message}`,
+            alert: true,
+        }));
     }
 }

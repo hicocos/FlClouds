@@ -11,6 +11,7 @@ import chunkedUploadRouter from './routes/chunkedUpload.js';
 import authRouter, { requireAuth } from './routes/auth.js';
 import { requireAuthOrSignedUrl } from './middleware/signedUrl.js';
 import { initTelegramBot } from './services/telegramBot.js';
+import { initTelegramUserClient, isTelegramUserClientReady } from './services/telegramUserClient.js';
 import helmet from 'helmet';
 
 dotenv.config();
@@ -101,6 +102,7 @@ app.listen(PORT, async () => {
 
     // 初始化 Telegram Bot
     if (telegramEnabled) {
+        await initTelegramUserClient();
         await initTelegramBot();
     }
 
@@ -111,6 +113,7 @@ app.listen(PORT, async () => {
 🖼️  缩略图目录: ${path.resolve(THUMBNAIL_DIR)}
 🔐 密码保护: ${passwordProtected ? '已启用' : '未启用'}
 🤖 Telegram Bot: ${telegramEnabled ? '已启用 (支持2GB文件)' : '未启用'}
+👤 Telegram User Download: ${isTelegramUserClientReady() ? '已启用' : '未启用'}
     `);
 });
 

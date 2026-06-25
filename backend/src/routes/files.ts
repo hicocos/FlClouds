@@ -84,7 +84,7 @@ router.post('/folders', async (req: Request, res: Response) => {
         // 插入占位文件
         const insertQuery = `
             INSERT INTO files (
-                name, stored_name, type, mime_type, size, 
+                name, stored_name, type, mime_type, size,
                 path, source, folder, storage_account_id
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id
@@ -95,7 +95,7 @@ router.post('/folders', async (req: Request, res: Response) => {
 
         await query(insertQuery, [
             '.folder',             // name
-            '.folder',             // stored_name  
+            '.folder',             // stored_name
             'other',               // type
             'application/x-directory', // mime_type
             0,                     // size
