@@ -446,6 +446,53 @@ export function buildSilentModeNotice(fileCount: number): string {
     ].join('\n');
 }
 
+interface SilentProgressBatch {
+    folderName: string;
+    totalFiles: number;
+    completed: number;
+    successful: number;
+    failed: number;
+    queuePending?: number;
+    currentFileName?: string;
+}
+
+interface SilentProgressFile {
+    fileName: string;
+    phase: ConsolidatedUploadFile['phase'];
+    downloaded?: number;
+    total?: number;
+}
+
+export function buildSilentProgress(fileCount: number, batches: SilentProgressBatch[], singleFiles: SilentProgressFile[] = []): string {
+    const totalBatchFiles = batches.reduce((sum, batch) => sum + batch.totalFiles, 0);
+    const completedBatchFiles = batches.reduce((sum, batch) => sum + batch.completed, 0);
+    const successfulBatchFiles = batches.reduce((sum, batch) => sum + batch.successful, 0);
+    const failedBatchFiles = batches.reduce((sum, batch) => sum + batch.failed, 0);
+    const completedSingleFiles = singleFiles.filter(file => file.phase === 'success' || file.phase === 'failed').length;
+    const failedSingleFiles = singleFiles.filter(file => file.phase === 'failed').length;
+    const totalFiles = Math.max(fileCount, totalBatchFiles + singleFiles.length);
+    const completedFiles = completedBatchFiles + completedSingleFiles;
+    const failedFiles = failedBatchFiles + failedSingleFiles;
+    const successfulFiles = successfulBatchFiles + completedSingleFiles - failedSingleFiles;
+    const remainingFiles = Math.max(0, totalFiles - completedFiles);
+    const activeBatch = batches.find(batch => batch.completed < batch.totalFiles);
+    const activeSingle = singleFiles.find(file => !['success', 'failed'].includes(file.phase));
+    const currentFile = activeBatch?.currentFileName || activeSingle?.fileName;
+    const progress = generateProgressBar(completedFiles, Math.max(totalFiles, 1));
+
+    return [
+        `🤐 **后台批量处理中**`,
+        `${progress} (${completedFiles}/${totalFiles})`,
+        ``,
+        `✅ 成功: ${successfulFiles}　❌ 失败: ${failedFiles}　⏳ 剩余: ${remainingFiles}`,
+        ...(currentFile ? [`📄 当前: ${currentFile}`] : []),
+        ...(activeBatch ? [`📁 批次: ${activeBatch.folderName}`] : []),
+        ...(activeBatch?.queuePending ? [`🕒 队列等待: ${activeBatch.queuePending}`] : []),
+        ``,
+        `💡 发送 /tasks 查看实时任务状态`,
+    ].join('\n');
+}
+
 /** 静默模式完成 (单文件) */
 export function buildSilentComplete(typeEmoji: string, providerName: string): string {
     return `✅ **上传完成！**\n🏷️ 类型: ${typeEmoji}\n📍 ${getProviderDisplayName(providerName)}`;
@@ -489,6 +536,7 @@ export interface ConsolidatedBatchEntry {
     providerName?: string;
     isSilent?: boolean;
     queuePending?: number;
+    currentFileName?: string;
 }
 
 /**

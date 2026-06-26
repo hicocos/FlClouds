@@ -1966,6 +1966,34 @@ function buildSilentModeNotice(fileCount) {
     `\u{1F4A1} \u53D1\u9001 /tasks \u67E5\u770B\u5B9E\u65F6\u4EFB\u52A1\u72B6\u6001`
   ].join("\n");
 }
+function buildSilentProgress(fileCount, batches, singleFiles = []) {
+  const totalBatchFiles = batches.reduce((sum, batch) => sum + batch.totalFiles, 0);
+  const completedBatchFiles = batches.reduce((sum, batch) => sum + batch.completed, 0);
+  const successfulBatchFiles = batches.reduce((sum, batch) => sum + batch.successful, 0);
+  const failedBatchFiles = batches.reduce((sum, batch) => sum + batch.failed, 0);
+  const completedSingleFiles = singleFiles.filter((file) => file.phase === "success" || file.phase === "failed").length;
+  const failedSingleFiles = singleFiles.filter((file) => file.phase === "failed").length;
+  const totalFiles = Math.max(fileCount, totalBatchFiles + singleFiles.length);
+  const completedFiles = completedBatchFiles + completedSingleFiles;
+  const failedFiles = failedBatchFiles + failedSingleFiles;
+  const successfulFiles = successfulBatchFiles + completedSingleFiles - failedSingleFiles;
+  const remainingFiles = Math.max(0, totalFiles - completedFiles);
+  const activeBatch = batches.find((batch) => batch.completed < batch.totalFiles);
+  const activeSingle = singleFiles.find((file) => !["success", "failed"].includes(file.phase));
+  const currentFile = activeBatch?.currentFileName || activeSingle?.fileName;
+  const progress = generateProgressBar(completedFiles, Math.max(totalFiles, 1));
+  return [
+    `\u{1F910} **\u540E\u53F0\u6279\u91CF\u5904\u7406\u4E2D**`,
+    `${progress} (${completedFiles}/${totalFiles})`,
+    ``,
+    `\u2705 \u6210\u529F: ${successfulFiles}\u3000\u274C \u5931\u8D25: ${failedFiles}\u3000\u23F3 \u5269\u4F59: ${remainingFiles}`,
+    ...currentFile ? [`\u{1F4C4} \u5F53\u524D: ${currentFile}`] : [],
+    ...activeBatch ? [`\u{1F4C1} \u6279\u6B21: ${activeBatch.folderName}`] : [],
+    ...activeBatch?.queuePending ? [`\u{1F552} \u961F\u5217\u7B49\u5F85: ${activeBatch.queuePending}`] : [],
+    ``,
+    `\u{1F4A1} \u53D1\u9001 /tasks \u67E5\u770B\u5B9E\u65F6\u4EFB\u52A1\u72B6\u6001`
+  ].join("\n");
+}
 function buildSilentAllTasksComplete(failedCount) {
   if (failedCount > 0) {
     return `\u26A0\uFE0F **\u540E\u53F0\u4EFB\u52A1\u90E8\u5206\u5B8C\u6210**
@@ -2899,6 +2927,7 @@ async function trySilentMode(client2, chatId, message) {
       sess.total = Math.max(sess.total, fileCount);
     }
     await ensureSilentNotice(client2, chatId, fileCount, message);
+    await refreshSilentProgress(client2, chatId);
     return true;
   }
   return false;
@@ -3002,6 +3031,17 @@ function getOutstandingTaskCount(chatIdStr) {
   const outstandingFiles = files.filter((f) => f.phase !== "success" && f.phase !== "failed").length;
   const outstandingBatches = batches.filter((b) => b.completed < b.totalFiles).length;
   return outstandingFiles + outstandingBatches;
+}
+async function refreshSilentProgress(client2, chatId) {
+  const chatIdStr = chatId.toString();
+  if (!silentSessionMap.has(chatIdStr)) return;
+  const silentMsgId = silentNoticeMessageIdMap.get(chatIdStr);
+  if (!silentMsgId) return;
+  const fileCount = getBackgroundFileCount(chatIdStr);
+  const batches = getConsolidatedBatches(chatIdStr);
+  const files = getConsolidatedFiles(chatIdStr);
+  const text = buildSilentProgress(fileCount, batches, files);
+  await safeEditMessage(client2, chatId, { message: silentMsgId, text });
 }
 async function checkAndResetSession(client2, chatId) {
   const chatIdStr = chatId.toString();
@@ -3196,7 +3236,7 @@ async function downloadAndSaveFile(client2, message, originalFileName, targetDir
     if (isPhotoMedia) {
       const downloaded = await client2.downloadMedia(message, {
         outputFile: filePath,
-        progressCallback: onProgress
+        progressCallback: onProgress ? (downloaded2, total) => onProgress(Number(downloaded2), Number(total)) : void 0
       });
       if (!downloaded || !fs6.existsSync(filePath)) {
         throw new Error("Telegram \u56FE\u7247\u4E0B\u8F7D\u672A\u751F\u6210\u6587\u4EF6");
@@ -3410,14 +3450,20 @@ async function processBatchUpload(client2, mediaGroupId) {
     const completed = queue.files.filter((f) => f.status === "success" || f.status === "failed").length;
     const successful = queue.files.filter((f) => f.status === "success").length;
     const failed = queue.files.filter((f) => f.status === "failed").length;
+    const currentFile = queue.files.find((f) => f.status === "uploading" || f.status === "queued") || queue.files.find((f) => f.status === "pending");
     const stats = downloadQueue.getStats();
     updateBatch(chatId.toString(), batchId, {
       completed,
       successful,
       failed,
-      queuePending: stats.pending
+      queuePending: stats.pending,
+      currentFileName: currentFile?.fileName
     });
-    if (!silentSessionMap.has(chatId.toString())) {
+    if (silentSessionMap.has(chatId.toString())) {
+      await runStatusAction(chatId, async () => {
+        await refreshSilentProgress(client2, chatId);
+      });
+    } else {
       await runStatusAction(chatId, async () => {
         await refreshConsolidatedMessage(client2, chatId);
       });
@@ -3602,7 +3648,12 @@ async function handleFileUpload(client2, event) {
       if (now - lastUpdateTime < 3e3) return;
       lastUpdateTime = now;
       updateUploadPhase(chatIdStr, uploadId, { phase: "downloading", downloaded, total });
-      if (silentSessionMap.has(chatIdStr)) return;
+      if (silentSessionMap.has(chatIdStr)) {
+        await runStatusAction(chatId, async () => {
+          await refreshSilentProgress(client2, chatId);
+        });
+        return;
+      }
       if (useConsolidated()) {
         await runStatusAction(chatId, async () => {
           await refreshConsolidatedMessage(client2, chatId);
@@ -3663,7 +3714,11 @@ async function handleFileUpload(client2, event) {
           }
         }
         updateUploadPhase(chatIdStr, uploadId, { phase: "saving" });
-        if (useConsolidated()) {
+        if (silentSessionMap.has(chatIdStr)) {
+          await runStatusAction(chatId, async () => {
+            await refreshSilentProgress(client2, chatId);
+          });
+        } else if (useConsolidated()) {
           await runStatusAction(chatId, async () => {
             await refreshConsolidatedMessage(client2, chatId);
           });
@@ -3738,7 +3793,11 @@ async function handleFileUpload(client2, event) {
         }
         lastLocalPath = void 0;
         updateUploadPhase(chatIdStr, uploadId, { phase: "retrying" });
-        if (useConsolidated()) {
+        if (silentSessionMap.has(chatIdStr)) {
+          await runStatusAction(chatId, async () => {
+            await refreshSilentProgress(client2, chatId);
+          });
+        } else if (useConsolidated()) {
           await runStatusAction(chatId, async () => {
             await refreshConsolidatedMessage(client2, chatId);
           });
@@ -3765,13 +3824,14 @@ async function handleFileUpload(client2, event) {
           });
         }
       } else if (!success) {
+        updateUploadPhase(chatIdStr, uploadId, { phase: "failed", error: lastError || "\u672A\u77E5\u9519\u8BEF" });
         if (silentSessionMap.has(chatIdStr)) {
           const sess = getSilentSession(chatIdStr);
           sess.completed += 1;
           sess.failed += 1;
+          await refreshSilentProgress(client2, chatId);
           await finalizeSilentSessionIfDone(client2, chatId);
         }
-        updateUploadPhase(chatIdStr, uploadId, { phase: "failed", error: lastError || "\u672A\u77E5\u9519\u8BEF" });
         if (useConsolidated()) {
           await runStatusAction(chatId, async () => {
             await refreshConsolidatedMessage(client2, chatId);
@@ -3793,6 +3853,7 @@ async function handleFileUpload(client2, event) {
         if (silentSessionMap.has(chatIdStr)) {
           const sess = getSilentSession(chatIdStr);
           sess.completed += 1;
+          await refreshSilentProgress(client2, chatId);
           await finalizeSilentSessionIfDone(client2, chatId);
         }
       }

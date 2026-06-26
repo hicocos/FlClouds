@@ -22,6 +22,7 @@ import {
     buildDuplicateSkipped,
     buildSilentModeNotice,
     buildSilentAllTasksComplete,
+    buildSilentProgress,
     buildBatchStatus,
     buildConsolidatedStatus,
     type BatchFile,
@@ -495,6 +496,7 @@ async function trySilentMode(client: TelegramClient, chatId: Api.TypeEntityLike,
             sess.total = Math.max(sess.total, fileCount);
         }
         await ensureSilentNotice(client, chatId, fileCount, message);
+        await refreshSilentProgress(client, chatId);
         return true; // 表示已进入/处于静默模式
     }
     return false;
@@ -640,6 +642,19 @@ function getOutstandingTaskCount(chatIdStr: string): number {
     const outstandingFiles = files.filter(f => f.phase !== 'success' && f.phase !== 'failed').length;
     const outstandingBatches = batches.filter(b => b.completed < b.totalFiles).length;
     return outstandingFiles + outstandingBatches;
+}
+
+async function refreshSilentProgress(client: TelegramClient, chatId: Api.TypeEntityLike) {
+    const chatIdStr = chatId.toString();
+    if (!silentSessionMap.has(chatIdStr)) return;
+    const silentMsgId = silentNoticeMessageIdMap.get(chatIdStr);
+    if (!silentMsgId) return;
+
+    const fileCount = getBackgroundFileCount(chatIdStr);
+    const batches = getConsolidatedBatches(chatIdStr);
+    const files = getConsolidatedFiles(chatIdStr);
+    const text = buildSilentProgress(fileCount, batches, files);
+    await safeEditMessage(client, chatId, { message: silentMsgId, text });
 }
 
 
@@ -914,7 +929,9 @@ async function downloadAndSaveFile(
         if (isPhotoMedia) {
             const downloaded = await client.downloadMedia(message, {
                 outputFile: filePath,
-                progressCallback: onProgress,
+                progressCallback: onProgress
+                    ? (((downloaded: any, total: any) => onProgress(Number(downloaded), Number(total))) as any)
+                    : undefined,
             });
             if (!downloaded || !fs.existsSync(filePath)) {
                 throw new Error('Telegram 图片下载未生成文件');
@@ -1198,17 +1215,24 @@ async function processBatchUpload(client: TelegramClient, mediaGroupId: string):
         const completed = queue.files.filter(f => f.status === 'success' || f.status === 'failed').length;
         const successful = queue.files.filter(f => f.status === 'success').length;
         const failed = queue.files.filter(f => f.status === 'failed').length;
+        const currentFile = queue.files.find(f => f.status === 'uploading' || f.status === 'queued')
+            || queue.files.find(f => f.status === 'pending');
         const stats = downloadQueue.getStats();
 
         updateBatch(chatId.toString(), batchId, {
             completed,
             successful,
             failed,
-            queuePending: stats.pending
+            queuePending: stats.pending,
+            currentFileName: currentFile?.fileName,
         });
 
-        // 静默模式下跳过合并状态更新
-        if (!silentSessionMap.has(chatId.toString())) {
+        // 静默模式下编辑静默通知为进度卡；非静默模式更新合并状态
+        if (silentSessionMap.has(chatId.toString())) {
+            await runStatusAction(chatId, async () => {
+                await refreshSilentProgress(client, chatId);
+            });
+        } else {
             await runStatusAction(chatId, async () => {
                 await refreshConsolidatedMessage(client, chatId);
             });
@@ -1452,7 +1476,12 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
 
             updateUploadPhase(chatIdStr, uploadId, { phase: 'downloading', downloaded, total });
 
-            if (silentSessionMap.has(chatIdStr)) return;
+            if (silentSessionMap.has(chatIdStr)) {
+                await runStatusAction(chatId, async () => {
+                    await refreshSilentProgress(client, chatId);
+                });
+                return;
+            }
 
             if (useConsolidated()) {
                 await runStatusAction(chatId, async () => {
@@ -1519,7 +1548,11 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
                 }
 
                 updateUploadPhase(chatIdStr, uploadId, { phase: 'saving' });
-                if (useConsolidated()) {
+                if (silentSessionMap.has(chatIdStr)) {
+                    await runStatusAction(chatId, async () => {
+                        await refreshSilentProgress(client, chatId);
+                    });
+                } else if (useConsolidated()) {
                     await runStatusAction(chatId, async () => {
                         await refreshConsolidatedMessage(client, chatId);
                     });
@@ -1595,7 +1628,11 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
                 lastLocalPath = undefined;
 
                 updateUploadPhase(chatIdStr, uploadId, { phase: 'retrying' });
-                if (useConsolidated()) {
+                if (silentSessionMap.has(chatIdStr)) {
+                    await runStatusAction(chatId, async () => {
+                        await refreshSilentProgress(client, chatId);
+                    });
+                } else if (useConsolidated()) {
                     await runStatusAction(chatId, async () => {
                         await refreshConsolidatedMessage(client, chatId);
                     });
@@ -1622,13 +1659,14 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
                     });
                 }
             } else if (!success) {
+                updateUploadPhase(chatIdStr, uploadId, { phase: 'failed', error: lastError || '未知错误' });
                 if (silentSessionMap.has(chatIdStr)) {
                     const sess = getSilentSession(chatIdStr);
                     sess.completed += 1;
                     sess.failed += 1;
+                    await refreshSilentProgress(client, chatId);
                     await finalizeSilentSessionIfDone(client, chatId);
                 }
-                updateUploadPhase(chatIdStr, uploadId, { phase: 'failed', error: lastError || '未知错误' });
                 if (useConsolidated()) {
                     await runStatusAction(chatId, async () => {
                         await refreshConsolidatedMessage(client, chatId);
@@ -1649,6 +1687,7 @@ export async function handleFileUpload(client: TelegramClient, event: NewMessage
                 if (silentSessionMap.has(chatIdStr)) {
                     const sess = getSilentSession(chatIdStr);
                     sess.completed += 1;
+                    await refreshSilentProgress(client, chatId);
                     await finalizeSilentSessionIfDone(client, chatId);
                 }
             }
