@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <strong>FlClouds</strong> 是一款面向个人和小团队的私有云存储系统，支持大文件切片上传、图片/视频预览、Web 管理、Telegram Bot 操作、账号级 Telegram 下载、桥接群/频道转发、并发下载调参、任务停止和 Google Drive 授权刷新。
+  <strong>FlClouds</strong> 是一款面向个人和小团队的私有云存储系统，支持大文件切片上传、图片/视频预览、Web 管理、Telegram Bot 操作、账号级 Telegram 下载。
 </p>
 
 ---
