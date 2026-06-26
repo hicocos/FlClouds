@@ -26,20 +26,24 @@ async function main() {
     useWSS: false,
   });
 
-  await client.start({
-    phoneNumber: async () => ask('Phone number: '),
-    phoneCode: async () => ask('Code: '),
-    password: async () => ask('2FA password (if any): '),
-    onError: (err) => {
-      throw err;
-    },
-  });
+  try {
+    await client.start({
+      phoneNumber: async () => ask('Phone number: '),
+      phoneCode: async () => ask('Code: '),
+      password: async () => ask('2FA password (if any): '),
+      onError: (err) => {
+        throw err;
+      },
+    });
 
-  const session = client.session.save() as unknown as string;
-  fs.writeFileSync(sessionFile, session, { mode: 0o600 });
-  fs.chmodSync(sessionFile, 0o600);
-  rl.close();
-  console.log(`Saved user session to ${sessionFile}`);
+    const session = client.session.save() as unknown as string;
+    fs.writeFileSync(sessionFile, session, { mode: 0o600 });
+    fs.chmodSync(sessionFile, 0o600);
+    console.log(`Saved user session to ${sessionFile}`);
+  } finally {
+    rl.close();
+    await client.disconnect();
+  }
 }
 
 main().catch(err => {
