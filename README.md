@@ -1,46 +1,55 @@
 <p align="center">
-  <img src="backend/logo.png" alt="FoomClous Logo" width="150" />
+  <img src="backend/logo.png" alt="FlClouds Logo" width="150" />
 </p>
 
-<h1 align="center"> FoomClous</h1>
-
-<p align="center">
-  <img src="https://img.shields.io/github/license/nccttc/foomclous?style=flat-square&color=blue" alt="License" />
-  <img src="https://img.shields.io/github/stars/nccttc/foomclous?style=flat-square&color=gold" alt="Stars" />
-  <img src="https://img.shields.io/github/forks/nccttc/foomclous?style=flat-square&color=lightgrey" alt="Forks" />
-  <img src="https://img.shields.io/github/issues/nccttc/foomclous?style=flat-square&color=red" alt="Issues" />
-  <img src="https://img.shields.io/badge/Security-HDFS--Ready-green?style=flat-square" alt="Security" />
-</p>
+<h1 align="center">FlClouds</h1>
 
 <p align="center">
-  <strong>FoomClous</strong> 是一款高性能、极简主义的个人私有云存储解决方案。支持大文件切片上传、实时图片预览、视频流播放，并提供强大的 API 支持（如 Telegram Bot 集成）。
+  <img src="https://img.shields.io/github/license/hicocos/FlClouds?style=flat-square&color=blue" alt="License" />
+  <img src="https://img.shields.io/github/stars/hicocos/FlClouds?style=flat-square&color=gold" alt="Stars" />
+  <img src="https://img.shields.io/github/forks/hicocos/FlClouds?style=flat-square&color=lightgrey" alt="Forks" />
+  <img src="https://img.shields.io/github/issues/hicocos/FlClouds?style=flat-square&color=red" alt="Issues" />
+  <img src="https://img.shields.io/badge/Fork-FlClouds-purple?style=flat-square" alt="Fork" />
 </p>
+
+<p align="center">
+  <strong>FlClouds</strong> 是基于 FoomClous 魔改的个人私有云存储方案。它保留大文件切片上传、图片/视频预览、Web 管理与 Telegram Bot 集成，并强化了 Telegram 账号级下载、桥接群/频道转发、并发下载调参、任务停止和 Google Drive 授权刷新等自用部署体验。
+</p>
+
+> [!NOTE]
+> 本仓库是 `hicocos/FlClouds` fork 版本，部署和镜像默认以本仓库源码自行构建为准；不要再使用原项目的旧多 Compose 部署说明或旧 Docker Hub 镜像说明。
 
 ---
 
 ## 🚀 快速部署 (Docker Compose)
 
-这是最简单、最推荐的方式。
+这是最简单、最推荐的方式。当前版本只保留一个 `docker-compose.yml`。
 
 ### 1. 克隆仓库
 ```bash
-git clone https://github.com/nccttc/foomclous.git
-cd foomclous
+git clone https://github.com/hicocos/FlClouds.git
+cd FlClouds
 ```
 
 ### 2. 配置环境变量
 ```bash
 cp .env.example .env
-vi .env  # 修改 DB_PASSWORD, CORS_ORIGIN 等
-也可进入服务器 /root/foomclous 目录下修改 .env 文件
+vi .env  # 修改 DB_PASSWORD、VITE_API_URL、CORS_ORIGIN、DOMAIN 等
 ```
 
-### 3. 构建并启动 (⚠️ 重要)
+### 3. 构建并启动
 
-由于 `VITE_API_URL` 是**构建时**变量，你需要在构建前端镜像时指定你的 API 地址：
+由于 `VITE_API_URL` 是**前端构建时变量**，生产部署前请先确认 `.env` 中的 `VITE_API_URL` 已经是你的真实 API 地址。
 
 ```bash
-# 构建前端 (将 YOUR_API_URL 替换为你的实际地址)
+# 构建并启动所有服务
+docker compose up -d --build
+```
+
+如果你需要手动分步构建，也可以：
+
+```bash
+# 构建前端（将地址替换为你的真实 API 地址）
 docker build --build-arg VITE_API_URL=https://your-api.example.com -t foomclous-frontend ./frontend
 
 # 构建后端
@@ -51,7 +60,7 @@ docker compose up -d
 ```
 
 > [!IMPORTANT]
-> `VITE_API_URL` 必须在 `docker build` 时通过 `--build-arg` 传入，运行时的 `.env` 无法影响它。
+> 修改 `VITE_API_URL` 后必须重新构建前端镜像；仅重启容器不会改变已经打包进前端静态文件的 API 地址。
 
 ---
 
@@ -61,59 +70,82 @@ docker compose up -d
 
 | 变量名 | 说明 | 示例 |
 | :--- | :--- | :--- |
-| `VITE_API_URL` | 前端访问后端的地址 (域名或 IP:端口) | `https://api.yourdomain.com` |
-| `DB_PASSWORD` | 数据库密码 | `mypassword123` |
-| `CORS_ORIGIN` | 允许跨域的来源 | `https://cloud.yourdomain.com` |
-| `DOMAIN` | 应用域名 | `yourdomain.com` |
-| `ACCESS_PASSWORD_HASH` | (可选) 访问密码的 Hash | `sha256_hash_here...` |
-| `TELEGRAM_BOT_TOKEN` | (可选) Telegram Bot Token | `123456:ABC-DEF...` |
-| `TELEGRAM_API_ID` | (可选) Telegram API ID | `123456` |
-| `TELEGRAM_API_HASH` | (可选) Telegram API Hash | `abcdef123456...` |
-| `TELEGRAM_USER_API_ID` | 用户账号下载器 API ID | `123456` |
-| `TELEGRAM_USER_API_HASH` | 用户账号下载器 API Hash | `abcdef123456...` |
-| `TELEGRAM_USER_SESSION_FILE` | 用户账号 session 文件 | `/data/telegram_user_session.txt` |
-| `TELEGRAM_DOWNLOAD_BRIDGE_CHAT_ID` | 可选，桥接群/频道 ID；配置后支持多人把文件私聊发给 bot，再由 bot 转发到桥接聊天供用户账号下载 | `-1001234567890` |
-| `TELEGRAM_DOWNLOAD_WORKERS` | Telegram 并发下载 worker 数；单请求仍受 Telegram 512KB 上限约束 | `4` |
+| `VITE_API_URL` | 前端访问后端的地址，必须包含协议 | `https://api.yourdomain.com` |
+| `DB_PASSWORD` | PostgreSQL 数据库密码 | `change_me_to_a_strong_password` |
+| `CORS_ORIGIN` | 允许跨域的前端来源 | `https://cloud.yourdomain.com` |
+| `DOMAIN` | 应用主域名，不带协议 | `cloud.yourdomain.com` |
+| `ACCESS_PASSWORD_HASH` | 可选，网页登录/接口访问密码的 SHA-256 Hash | `sha256_hash_here...` |
+| `TELEGRAM_BOT_TOKEN` | 可选，Telegram Bot Token | `123456:ABC-DEF...` |
+| `TELEGRAM_API_ID` | 可选，Telegram API ID | `123456` |
+| `TELEGRAM_API_HASH` | 可选，Telegram API Hash | `abcdef123456...` |
+| `TELEGRAM_USER_API_ID` | 可选，账号级下载器 API ID | `123456` |
+| `TELEGRAM_USER_API_HASH` | 可选，账号级下载器 API Hash | `abcdef123456...` |
+| `TELEGRAM_USER_SESSION_FILE` | 可选，用户账号 session 文件路径 | `/data/telegram_user_session.txt` |
+| `TELEGRAM_DOWNLOAD_BRIDGE_CHAT_ID` | 可选，桥接群/频道 ID；多人使用时推荐配置 | `-1001234567890` |
+| `TELEGRAM_DOWNLOAD_WORKERS` | 可选，Telegram 并发下载 worker 数，建议 4-8 | `4` |
+| `YTDLP_BIN` | 可选，yt-dlp 可执行文件路径 | `yt-dlp` |
+| `YTDLP_WORK_DIR` | 可选，yt-dlp 下载临时目录 | `./data/uploads/ytdlp` |
+| `YTDLP_MAX_CONCURRENT` | 可选，yt-dlp 并发任务数 | `1` |
 
 ---
 
 ## 🤖 Telegram Bot 配置指南
 
-集成 Telegram Bot 后，你可以通过聊天窗口直接上传文件、管理云端数据。
-
-### 用户账号下载器（可选）
-
-如果你希望下载由 Telegram 用户账号执行，而不是 bot 账号执行，可以启用用户账号下载器。它会使用一个已登录的 Telegram 用户 session 作为下载通道，bot 继续负责命令和状态展示。
-
-1. 使用 `npm run login:telegram-user` 生成 `TELEGRAM_USER_SESSION_FILE`
-2. 在 `.env` 中配置 `TELEGRAM_USER_API_ID`、`TELEGRAM_USER_API_HASH`、`TELEGRAM_USER_SESSION_FILE`
-3. 启动后端后，在网页设置中开启“账号级下载器”。开启时会检查 session 是否就绪；如果 session 未准备好会拒绝开启，避免悄悄回退到旧逻辑
-
-> 单人自用可以直接把文件发给 bot：请确保生成 session 的那个用户账号本身能看到 bot 私聊里的媒体消息。
->
-> 多人使用建议配置 `TELEGRAM_DOWNLOAD_BRIDGE_CHAT_ID`：把 bot 和用户账号都加入同一个群/频道，并让 bot 有发消息权限。配置后，用户仍然可以私聊把文件发给 bot；bot 会自动转发到桥接聊天，用户账号再从桥接聊天下载，避免跨用户私聊消息不可见导致 `FILE_REFERENCE_EXPIRED`。
->
-> 下载速度可用 `TELEGRAM_DOWNLOAD_WORKERS` 调整并发数。Telegram 单次 `upload.getFile` 请求最大约 512KB，不能直接改成 50MB/100MB；并发 worker 会按不同 offset 同时拉取 512KB 分片再写回同一个文件。建议先用 `4` 或 `8`，过高可能触发 Telegram 限流或导致线路抖动。
+集成 Telegram Bot 后，你可以通过聊天窗口上传文件、查看任务、删除文件、查看存储统计，并调用 yt-dlp 下载视频链接。
 
 ### 1. 获取 Bot Token
 1. 在 Telegram 中搜索 [@BotFather](https://t.me/BotFather) 并开始对话。
-2. 发送 `/newbot` 命令，按照提示为你的机器人起个名字。
-3. 成功后，BotFather 会发给你一串 `HTTP API TOKEN` (例如 `123456:ABC-DEF...`)。
-4. 将此 Token 填入 `.env` 的 `TELEGRAM_BOT_TOKEN`。
+2. 发送 `/newbot`，按提示创建机器人。
+3. 复制 BotFather 返回的 `HTTP API TOKEN`。
+4. 写入 `.env` 的 `TELEGRAM_BOT_TOKEN`。
 
 ### 2. 获取 API ID 和 API Hash
-*如果你需要使用更高级的 TDLib 或特定接口功能，请按以下步骤操作：*
-1. 访问 [my.telegram.org](https://my.telegram.org) 并登录你的 Telegram 账号。
+1. 访问 [my.telegram.org](https://my.telegram.org) 并登录 Telegram 账号。
 2. 进入 `API development tools`。
-3. 创建一个新的应用（App title 和 Short name 可随意填写）。
-4. 复制 `App api_id` 和 `App api_hash`。
-5. 分别填入 `.env` 的 `TELEGRAM_API_ID` 和 `TELEGRAM_API_HASH`。
+3. 创建应用后复制 `api_id` 和 `api_hash`。
+4. 如果只用 bot 基础能力，写入 `TELEGRAM_API_ID` / `TELEGRAM_API_HASH`。
+5. 如果启用账号级下载器，同时写入 `TELEGRAM_USER_API_ID` / `TELEGRAM_USER_API_HASH`。
+
+### 3. 生成用户账号 session（可选）
+
+账号级下载器让 Telegram 文件下载由用户账号执行，而不是由 bot 账号执行。它适合大文件下载、私有媒体引用刷新和多人桥接场景。
+
+```bash
+# 首次构建后执行
+cd backend
+npm run build
+npm run login:telegram-user
+```
+
+按提示登录 Telegram 后，把生成的 session 文件路径配置到：
+
+```env
+TELEGRAM_USER_SESSION_FILE=/data/telegram_user_session.txt
+```
+
+启动后端后，在网页设置中开启“账号级下载器”。开启时会检查 session 是否就绪；如果 session 未准备好会拒绝开启，避免静默回退。
+
+### 4. 单人/多人使用建议
+
+| 场景 | 推荐配置 | 说明 |
+| :--- | :--- | :--- |
+| 单人自用 | 不配置桥接聊天 | 生成 session 的用户账号需要能看到 bot 私聊里的媒体消息 |
+| 多人使用 | 配置 `TELEGRAM_DOWNLOAD_BRIDGE_CHAT_ID` | bot 会把私聊收到的文件转发到桥接群/频道，用户账号再从桥接聊天下载 |
+| 频道桥接 | bot 通常需要管理员/发消息权限 | bot 和用户账号都必须能访问该频道 |
+
+### 5. Telegram 并发下载调参
+
+`TELEGRAM_DOWNLOAD_WORKERS` 控制并发分片请求数，默认 `4`。
+
+- `4`：默认推荐，稳定优先
+- `8`：更均衡，适合日常大文件
+- `12` / `16`：激进模式，需要二次确认，可能更容易遇到 Telegram 限流、断流或账号风险
+
+> Telegram 单次 `upload.getFile` 请求最大约 512KB。这里调的是并发分片数，不是单请求大小。
 
 ---
 
 ## 🤖 Telegram Bot 可用命令
-
-配置完成后，你可以向 Bot 发送以下命令：
 
 | 命令 | 描述 |
 | :--- | :--- |
@@ -122,143 +154,114 @@ docker compose up -d
 | `/setup_2fa` | 配置或准备双重验证 (TOTP) |
 | `/storage` | 查看当前服务器磁盘与存储统计 |
 | `/list` | 查看最近上传的文件列表 |
-| `/tasks` | 查看当前传输任务队列 (包含下载进度) |
+| `/tasks` | 查看当前传输任务队列和下载进度 |
 | `/stop_tasks` | 强制停止所有下载任务 |
 | `/download_workers` | 打开并发下载调参面板 (4 / 8 / 12 / 16) |
-| `/delete <ID>` | 删除指定文件 (支持 ID 前缀) |
-| `/ytdlp <url>` | 解析视频链接并下载到存储源 (yt-dlp) |
+| `/delete <ID>` | 删除指定文件，支持 ID 前缀 |
+| `/ytdlp <url>` | 解析视频链接并下载到当前存储源 |
 
 > [!TIP]
-> **多文件上传优化**: 当后台下载文件数量达到 **9** 个及以上时，Bot 会自动进入**静默模式**，在后台排队处理以避免刷屏，你可以随时使用 `/tasks` 查看实时进度。
+> 多文件上传数量达到 9 个及以上时，Bot 会自动进入静默排队模式，避免刷屏；可随时用 `/tasks` 查看进度。
 
-### 📥 视频下载命令 (`/ytdlp`)
+---
 
-通过集成 [yt-dlp](https://github.com/yt-dlp/yt-dlp)，你可以直接在 Telegram Bot 中发送视频链接，让服务器自动解析并下载到当前存储源。
+## 📥 yt-dlp 视频下载
 
-**依赖说明**：
-- 官方后端镜像已内置 `yt-dlp` 与 `ffmpeg`，无需额外安装。
-- 若自行构建镜像，请确保 Dockerfile 中已安装 `yt-dlp` 可执行文件。
+通过集成 [yt-dlp](https://github.com/yt-dlp/yt-dlp)，你可以直接在 Telegram Bot 中发送视频链接，让服务器解析并下载到当前存储源。
 
-**环境变量**（`.env` 可选）：
+**环境变量**：
+
 | 变量名 | 说明 | 默认值 |
 | :--- | :--- | :--- |
-| `YTDLP_BIN` | yt-dlp 可执行文件路径 | `yt-dlp`（使用系统 PATH） |
+| `YTDLP_BIN` | yt-dlp 可执行文件路径 | `yt-dlp` |
 | `YTDLP_WORK_DIR` | 下载临时目录 | `./data/uploads/ytdlp` |
 | `YTDLP_MAX_CONCURRENT` | 并发下载任务数 | `1` |
 
 **使用方法**：
-1. 在 Telegram 私聊中向 Bot 发送：
-   ```
-   /ytdlp https://example.com/video
-   ```
-2. Bot 会回复“开始解析并下载…”表示任务已创建。
-3. 下载完成后自动上传到当前存储源，并回复：
-   - ✅ 成功：`已上传
-文件: xxx.mp4
-大小: 12.5 MB
-存储源: local`
-   - ❌ 失败：`下载/上传失败
-原因: ...`
 
-**注意事项**：
-- 仅支持单个链接，不支持播放列表。
-- 需要已通过 `/start` 验证身份。
-- 链接必须以 `http://` 或 `https://` 开头。
-- 下载后的文件会自动入库并生成缩略图，在前端 `ytdlp` 文件夹中可见。
+```text
+/ytdlp https://example.com/video
+```
 
-### ⚙️ Telegram 并发下载调参
-
-如果你在 Telegram Bot 菜单里打开 `/download_workers`，会看到 4 / 8 / 12 / 16 四档。
-
-- `4`：默认推荐，稳定优先
-- `8`：更均衡，适合日常大文件
-- `12` / `16`：激进模式，**需要二次确认**，可能更容易遇到 Telegram 风控、断流、限速，甚至账号风险
-
-注意：Telegram 单次 `upload.getFile` 请求上限仍然是 **512KB**。这里调的是**并发分片数**，不是单请求大小。
-
-如果你改了 `.env` 里的 `TELEGRAM_DOWNLOAD_WORKERS`，建议重启后端容器；如果只是通过 bot 菜单修改，设置会写入数据库并立即生效。
+限制：仅支持单个链接；需要先通过 `/start` 验证身份；链接必须以 `http://` 或 `https://` 开头。
 
 ---
 
 ## 🔐 安全与访问控制
 
-如果设置了 `ACCESS_PASSWORD_HASH`，访问网页和 API 将需要输入密码。本应用目前使用 **SHA-256** 算法进行哈希。
+如果设置了 `ACCESS_PASSWORD_HASH`，访问网页和 API 将需要输入密码。本应用目前使用 SHA-256 算法进行哈希。
 
 > [!CAUTION]
->注：因TGbot键盘只支持四位数字，所以密码长度限制为四位数字，且不能包含特殊字符，请在生成密码时注意。
+> Telegram Bot 键盘只适合四位数字密码输入场景；如果你通过 Bot 使用密码登录，请设置四位数字并生成对应 SHA-256 Hash。
 
-### 如何生成密码哈希值？
+### 生成密码哈希
 
-你可以使用以下任一简单命令生成（将 `your_password` 替换为你想设的密码）：
-
-#### Node.js (推荐，跨平台)
-如果你已经安装了 Node.js，直接运行：
 ```bash
 node -e "console.log(require('crypto').createHash('sha256').update('your_password').digest('hex'))"
 ```
 
-#### Linux/macOS (Git Bash)
+Linux/macOS 也可以：
+
 ```bash
 echo -n "your_password" | sha256sum | awk '{print $1}'
 ```
 
-#### PowerShell (Windows)
-```powershell
-[System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes("your_password"))).Replace("-", "").ToLower()
-```
+将生成的 64 位字符串填入 `.env` 的 `ACCESS_PASSWORD_HASH`。
 
-将生成的 64 位字符串填入 `.env` 文件的 `ACCESS_PASSWORD_HASH` 即可。
+### 双重验证 (TOTP)
 
-### 🔐 双重验证 (Two-Factor Authentication)
+FlClouds 内置支持 TOTP 双重验证（如 Google Authenticator）：
 
-FoomClous 已内置支持 TOTP 双重验证（如 Google Authenticator）。
-- **Web 端**：在“个人设置”中通过扫码激活。
-- **Telegram Bot**：发送 `/setup_2fa` 即可获取设置二维码，直接在对话框输入验证码即可激活。
-- **安全性**：启用后，登录网页和使用 Bot 均需二次验证。
+- Web 端：在个人设置中扫码激活
+- Telegram Bot：发送 `/setup_2fa` 获取设置二维码，并在对话框输入验证码激活
+- 启用后，网页登录和使用 Bot 均需二次验证
 
 ---
 
-## 🌐 反向代理建议 (Reverse Proxy)
+## 🌐 反向代理建议
 
-如果你使用 Nginx 或 NPM 部署，请参考以下映射关系：
+如果你使用 Nginx、Nginx Proxy Manager 或 Caddy 部署，请参考以下映射：
 
 | 访问域名 | 协议 | 转发至宿主机 IP:端口 | 说明 |
 | :--- | :--- | :--- | :--- |
-| `cloud.example.com` | HTTPS | `127.0.0.1:47832` | **前端/网页入口** |
-| `api.example.com` | HTTPS | `127.0.0.1:51947` | **后端/API 接口** |
+| `cloud.example.com` | HTTPS | `127.0.0.1:47832` | 前端/网页入口 |
+| `api.example.com` | HTTPS | `127.0.0.1:51947` | 后端/API 接口 |
 
 > [!CAUTION]
-> 开启 HTTPS 后，`.env` 中的所有 URL 必须以 `https://` 开头，否则浏览器会拦截资源。
+> 开启 HTTPS 后，`.env` 中的 `VITE_API_URL` 和 `CORS_ORIGIN` 都应使用 `https://`，否则浏览器可能拦截请求。
+
+---
 
 ## 📦 Docker 镜像说明
 
-> [!WARNING]
-> Docker Hub 上的公共前端镜像 (`cxaryoro/foomclous-frontend`) 使用默认 API 地址编译。
-> **生产环境请务必使用 `--build-arg VITE_API_URL=...` 自行构建前端镜像。**
+当前 fork 推荐**从源码本地构建镜像**：
 
-后端镜像可以直接使用：
-*   **后端 API:** `cxaryoro/foomclous-backend:latest`
-*   **数据库:** `postgres:16-alpine`
+```bash
+docker compose up -d --build
+```
+
+`docker-compose.yml` 会构建并使用以下本地镜像 tag：
+
+- `foomclous-frontend:latest`
+- `foomclous-backend:latest`
+- `postgres:16-alpine`
+
+暂不建议直接使用原项目旧 Docker Hub 镜像，因为它们不包含本 fork 的账号级 Telegram 下载器、桥接转发、并发下载调参和授权刷新改动。
 
 ---
 
 ## 🔄 维护与更新
 
-### 1. 更新项目
-要获取最新功能的代码并更新服务器，请在项目目录下运行：
 ```bash
-# 进入项目目录
-cd /root/foomclous
+cd /root/FlClouds
 
-# 拉取最新代码
 git pull origin main
 
-# 重新构建并启动（自动应用改动）
 docker compose up -d --build
 ```
 
-### 2. 清理 Docker 资源
-频繁构建可能会占用较多磁盘空间，可以使用以下命令清理废弃的镜像、容器和网络：
+清理无用 Docker 资源：
+
 ```bash
 docker system prune -f
 ```
@@ -267,32 +270,37 @@ docker system prune -f
 
 ## ✨ 功能特性
 
-*   📦 **极速上传**: 支持大文件切片、断点续传。
-*   🖼️ **智能预览**: 图片与视频自动生成缩略图（WebP）、视频实时流播放。
-*   🤖 **Bot 友好**: 提供完善的外部 API，轻松集成 Telegram 等机器人。
-*   🌍 **多语言**: 内置 i18n 系统，支持中英文切换。
-*   🐳 **全容器化**: 一键水平扩展，部署极其简单。
+- 📦 大文件切片上传与断点续传
+- 🖼️ 图片缩略图、视频预览与流式播放
+- 🤖 Telegram Bot 上传、下载、删除、任务队列与存储统计
+- 👤 Telegram 用户账号级 MTProto 下载器
+- 🔁 桥接群/频道转发，改善多人私聊媒体不可见问题
+- ⚙️ Telegram 并发下载 worker 调参
+- 📥 yt-dlp 视频链接下载到当前存储源
+- 🔐 Web / Bot 双重验证与访问密码保护
+- 🧩 Google Drive 等存储源配置与授权刷新
+- 🐳 单一 `docker-compose.yml` 容器化部署
 
 ---
 
 ## 📂 项目结构
 
 ```text
-FoomClous/
-├── frontend/    # React 网页前端
-├── backend/     # Node.js API 服务
-├── init.sql     # 数据库初始化脚本
-└── docker-compose.yml  # Docker 部署配置
+FlClouds/
+├── frontend/           # React 网页前端
+├── backend/            # Node.js API 与 Telegram 服务
+├── init.sql            # 数据库初始化脚本
+├── docker-compose.yml  # Docker Compose 部署配置
+├── .env.example        # 环境变量模板
+└── LICENSE             # MIT License
 ```
 
 ---
-[![Star History Chart](https://api.star-history.com/svg?repos=nccttc/FoomClous&type=date&legend=top-left)](https://www.star-history.com/#nccttc/FoomClous&type=date&legend=top-left)
 
----
-
----
 ## 📄 开源协议
 
 基于 [MIT License](LICENSE) 开源。
+
 ---
-2026
+
+[![Star History Chart](https://api.star-history.com/svg?repos=hicocos/FlClouds&type=date&legend=top-left)](https://www.star-history.com/#hicocos/FlClouds&type=date&legend=top-left)
