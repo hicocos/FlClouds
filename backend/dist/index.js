@@ -2389,13 +2389,40 @@ function getTypeFolder(mimeType) {
 function getDetailedTypeFolder(mimeType, fileName) {
   const lowerMime = (mimeType || "").toLowerCase();
   const ext = path8.extname(fileName || "").toLowerCase();
+  const installerExts = /* @__PURE__ */ new Set([
+    ".apk",
+    ".apks",
+    ".aab",
+    ".ipa",
+    ".exe",
+    ".msi",
+    ".msix",
+    ".appx",
+    ".appxbundle",
+    ".dmg",
+    ".pkg",
+    ".deb",
+    ".rpm",
+    ".appimage",
+    ".snap",
+    ".run",
+    ".bin",
+    ".sh",
+    ".bat",
+    ".cmd",
+    ".iso",
+    ".img"
+  ]);
+  const archiveExts = /* @__PURE__ */ new Set([".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz"]);
+  const codeExts = /* @__PURE__ */ new Set([".js", ".ts", ".py", ".json", ".xml", ".sql", ".html", ".css", ".java", ".go", ".rs", ".php", ".rb", ".cpp", ".c", ".h"]);
+  if (installerExts.has(ext) || lowerMime.includes("android.package-archive") || lowerMime.includes("apple.installer") || lowerMime.includes("x-msdownload") || lowerMime.includes("x-msi") || lowerMime.includes("x-apple-diskimage") || lowerMime.includes("x-debian-package") || lowerMime.includes("x-rpm") || lowerMime.includes("x-iso9660-image") || lowerMime.includes("executable")) return "apps";
   if (lowerMime.includes("epub") || lowerMime.includes("mobi") || [".epub", ".mobi"].includes(ext)) return "ebooks";
   if (lowerMime.includes("pdf") || ext === ".pdf") return "pdfs";
-  if (lowerMime.includes("zip") || lowerMime.includes("rar") || lowerMime.includes("7z") || lowerMime.includes("tar") || lowerMime.includes("gzip") || lowerMime.includes("compressed") || [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz"].includes(ext)) return "archives";
+  if (lowerMime.includes("zip") || lowerMime.includes("rar") || lowerMime.includes("7z") || lowerMime.includes("tar") || lowerMime.includes("gzip") || lowerMime.includes("compressed") || archiveExts.has(ext)) return "archives";
   if (lowerMime.includes("spreadsheet") || lowerMime.includes("excel") || [".xls", ".xlsx", ".csv"].includes(ext)) return "spreadsheets";
   if (lowerMime.includes("presentation") || lowerMime.includes("powerpoint") || [".ppt", ".pptx"].includes(ext)) return "presentations";
   if (lowerMime.includes("word") || [".doc", ".docx"].includes(ext)) return "word-docs";
-  if (lowerMime.includes("javascript") || lowerMime.includes("typescript") || lowerMime.includes("python") || lowerMime.includes("json") || lowerMime.includes("xml") || lowerMime.includes("sql") || [".js", ".ts", ".py", ".json", ".xml", ".sql", ".html", ".css"].includes(ext)) return "code";
+  if (lowerMime.includes("javascript") || lowerMime.includes("typescript") || lowerMime.includes("python") || lowerMime.includes("json") || lowerMime.includes("xml") || lowerMime.includes("sql") || codeExts.has(ext)) return "code";
   return getTypeFolder(mimeType);
 }
 async function getStoragePathRules() {
