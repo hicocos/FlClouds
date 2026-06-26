@@ -34,6 +34,7 @@ services:
       - VITE_API_URL=${VITE_API_URL:-https://api.example.com}
       - CORS_ORIGIN=${CORS_ORIGIN:-https://cloud.example.com}
       - ACCESS_PASSWORD_HASH=${ACCESS_PASSWORD_HASH:-}
+      - SESSION_SECRET=${SESSION_SECRET:-}
       - DOMAIN=${DOMAIN:-cloud.example.com}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_API_ID=${TELEGRAM_API_ID:-}

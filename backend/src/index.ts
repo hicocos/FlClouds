@@ -40,9 +40,22 @@ if (!fs.existsSync(CHUNK_DIR)) {
     console.log(`📁 创建分块目录: ${CHUNK_DIR}`);
 }
 
-// 中间件 (允许全域访问以协助调试，生产稳定后可缩减)
+const configuredCorsOrigin = process.env.CORS_ORIGIN || '';
+const allowedOrigins = configuredCorsOrigin
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+const allowAnyOrigin = allowedOrigins.includes('*');
+
 app.use(cors({
-    origin: true, // 允许所有来源
+    origin: allowAnyOrigin
+        ? true
+        : (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+            return callback(new Error(`CORS origin not allowed: ${origin}`));
+        },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'X-API-Key', 'X-Upload-Id', 'X-Chunk-Index', 'Authorization'],

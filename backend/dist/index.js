@@ -1285,7 +1285,10 @@ import crypto from "crypto";
 import dotenv2 from "dotenv";
 dotenv2.config();
 var ACCESS_PASSWORD_HASH = process.env.ACCESS_PASSWORD_HASH || "";
-var SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+var SESSION_SECRET = process.env.SESSION_SECRET || ACCESS_PASSWORD_HASH || crypto.randomBytes(32).toString("hex");
+if (!process.env.SESSION_SECRET) {
+  console.warn("\u26A0\uFE0F  SESSION_SECRET \u672A\u8BBE\u7F6E\uFF0C\u91CD\u542F\u540E\u4F1A\u8BDD\u548C\u7B7E\u540D URL \u53EF\u80FD\u5931\u6548\u3002\u8BF7\u5728\u751F\u4EA7\u73AF\u5883\u914D\u7F6E\u56FA\u5B9A SESSION_SECRET\u3002");
+}
 var TOKEN_EXPIRY = 7 * 24 * 60 * 60 * 1e3;
 var TELEGRAM_USER_API_ID = process.env.TELEGRAM_USER_API_ID || "";
 var TELEGRAM_USER_API_HASH = process.env.TELEGRAM_USER_API_HASH || "";
@@ -6221,9 +6224,16 @@ if (!fs14.existsSync(CHUNK_DIR2)) {
   fs14.mkdirSync(CHUNK_DIR2, { recursive: true });
   console.log(`\u{1F4C1} \u521B\u5EFA\u5206\u5757\u76EE\u5F55: ${CHUNK_DIR2}`);
 }
+var configuredCorsOrigin = process.env.CORS_ORIGIN || "";
+var allowedOrigins = configuredCorsOrigin.split(",").map((origin) => origin.trim()).filter(Boolean);
+var allowAnyOrigin = allowedOrigins.includes("*");
 app.use(cors({
-  origin: true,
-  // 允许所有来源
+  origin: allowAnyOrigin ? true : (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   allowedHeaders: ["Content-Type", "X-API-Key", "X-Upload-Id", "X-Chunk-Index", "Authorization"]

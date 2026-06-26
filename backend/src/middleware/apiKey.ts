@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { randomBytes } from 'crypto';
 import { query } from '../db/index.js';
 
 export interface ApiKeyInfo {
@@ -54,10 +55,5 @@ export const validateApiKey = async (req: Request, res: Response, next: NextFunc
 
 // 生成新的 API Key
 export const generateApiKey = (): string => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let key = 'fc_'; // FlClouds 前缀
-    for (let i = 0; i < 48; i++) {
-        key += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return key;
+    return `fc_${randomBytes(36).toString('base64url')}`;
 };

@@ -100,6 +100,7 @@ docker compose up -d
 | `CORS_ORIGIN` | 允许跨域的前端来源 | `https://cloud.yourdomain.com` | 你的前端网页公网地址，例如 Nginx/Caddy 指向宿主机 `47832` |
 | `DOMAIN` | 应用主域名，不带协议 | `cloud.yourdomain.com` | 填前端主域名，用于生成链接和展示 |
 | `ACCESS_PASSWORD_HASH` | 可选，网页登录/接口访问密码的 SHA-256 Hash | `sha256_hash_here...` | 见“生成密码哈希”章节；不填则不启用访问密码 |
+| `SESSION_SECRET` | 推荐，固定会话和签名 URL 密钥 | `openssl rand -hex 32` 生成值 | 公网部署务必设置；不填时重启会导致登录会话和签名 URL 失效 |
 | `TELEGRAM_BOT_TOKEN` | 可选，Telegram Bot Token | `123456:ABC-DEF...` | 找 [@BotFather](https://t.me/BotFather) 创建机器人后获取 |
 | `TELEGRAM_API_ID` | 可选，Telegram API ID | `123456` | 登录 [my.telegram.org](https://my.telegram.org) 创建应用后获取 |
 | `TELEGRAM_API_HASH` | 可选，Telegram API Hash | `abcdef123456...` | 与 `TELEGRAM_API_ID` 在同一页面获取 |
@@ -207,6 +208,14 @@ echo -n "your_password" | sha256sum | awk '{print $1}'
 ```
 
 将生成的 64 位字符串填入 `.env` 的 `ACCESS_PASSWORD_HASH`。
+
+### 生成会话密钥
+
+```bash
+openssl rand -hex 32
+```
+
+将生成的字符串填入 `.env` 的 `SESSION_SECRET`，用于保持服务重启后的登录会话与签名 URL 校验稳定。
 
 ### 双重验证 (TOTP)
 
