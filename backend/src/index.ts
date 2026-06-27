@@ -125,7 +125,7 @@ app.listen(PORT, async () => {
 📁 上传目录: ${path.resolve(UPLOAD_DIR)}
 🖼️  缩略图目录: ${path.resolve(THUMBNAIL_DIR)}
 🔐 密码保护: ${passwordProtected ? '已启用' : '未启用'}
-🤖 Telegram Bot: ${telegramEnabled ? '已启用 (支持2GB文件)' : '未启用'}
+🤖 Telegram Bot: ${telegramEnabled ? '已启用 (最大 2GB，账号级下载器不受此限制)' : '未启用'}
 👤 Telegram User Download: ${isTelegramUserClientReady() ? '已启用' : '未启用'}
     `);
 });

@@ -82,3 +82,53 @@ CREATE OR REPLACE TRIGGER system_settings_updated_at
     BEFORE UPDATE ON system_settings
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
+
+-- Telegram 频道订阅表
+CREATE TABLE IF NOT EXISTS telegram_channel_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id BIGINT NOT NULL,
+    chat_id BIGINT,
+    source TEXT NOT NULL,
+    title TEXT,
+    last_message_id INT DEFAULT 0,
+    enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tg_channel_subscriptions_enabled ON telegram_channel_subscriptions(enabled);
+CREATE INDEX IF NOT EXISTS idx_tg_channel_subscriptions_user_id ON telegram_channel_subscriptions(user_id);
+
+CREATE OR REPLACE TRIGGER telegram_channel_subscriptions_updated_at
+    BEFORE UPDATE ON telegram_channel_subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
+
+-- Telegram 后台任务表（用于重启后可见、可追踪）
+CREATE TABLE IF NOT EXISTS telegram_background_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id BIGINT NOT NULL,
+    chat_id BIGINT,
+    kind VARCHAR(50) NOT NULL,
+    source TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    params JSONB DEFAULT '{}'::jsonb,
+    total_count INT DEFAULT 0,
+    enqueued_count INT DEFAULT 0,
+    skipped_count INT DEFAULT 0,
+    duplicate_count INT DEFAULT 0,
+    error TEXT,
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tg_background_jobs_user_created ON telegram_background_jobs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tg_background_jobs_status ON telegram_background_jobs(status);
+
+CREATE OR REPLACE TRIGGER telegram_background_jobs_updated_at
+    BEFORE UPDATE ON telegram_background_jobs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();

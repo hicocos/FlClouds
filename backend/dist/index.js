@@ -1741,9 +1741,12 @@ function buildWelcomeBack() {
     ``,
     `\u60A8\u5DF2\u901A\u8FC7\u9A8C\u8BC1\uFF0C\u53EF\u4EE5\u76F4\u63A5\u4F7F\u7528\uFF1A`,
     ``,
-    `\u{1F4E4}  \u53D1\u9001/\u8F6C\u53D1\u6587\u4EF6\u5373\u53EF\u4E0A\u4F20 (\u6700\u5927 2GB)`,
+    `\u{1F4E4}  \u53D1\u9001/\u8F6C\u53D1\u6587\u4EF6\u5373\u53EF\u4E0A\u4F20 (\u6700\u5927 2GB\uFF0C\u8D26\u53F7\u7EA7\u4E0B\u8F7D\u5668\u4E0D\u53D7\u6B64\u9650\u5236)`,
     `\u{1F510}  /setup_2fa \u2014 \u914D\u7F6E\u53CC\u91CD\u9A8C\u8BC1`,
     `\u{1F4E5}  /ytdlp \u2014 \u89E3\u6790\u5E76\u4E0B\u8F7D\u94FE\u63A5`,
+    `\u{1F4E1}  /tg_sub \u2014 \u8BA2\u9605\u9891\u9053\u81EA\u52A8\u540C\u6B65`,
+    `\u{1F5D3}\uFE0F  /tg_date \u2014 \u6309\u65E5\u671F\u4E0B\u8F7D\u9891\u9053\u6587\u4EF6`,
+    `\u{1F9FE}  /tg_jobs \u2014 Telegram \u540E\u53F0\u4EFB\u52A1`,
     `\u{1F4CA}  /storage \u2014 \u5B58\u50A8\u7A7A\u95F4\u6982\u89C8`,
     `\u{1F4CB}  /list \u2014 \u6700\u8FD1\u4E0A\u4F20\u8BB0\u5F55`,
     `\u{1F527}  /tasks \u2014 \u5B9E\u65F6\u4EFB\u52A1\u961F\u5217`,
@@ -1760,7 +1763,7 @@ function buildAuthSuccess() {
     `\u2705 **\u5BC6\u7801\u9A8C\u8BC1\u6210\u529F\uFF01**`,
     ``,
     `\u73B0\u5728\u60A8\u53EF\u4EE5\uFF1A`,
-    `\u{1F4E4}  \u53D1\u9001/\u8F6C\u53D1\u4EFB\u610F\u6587\u4EF6\u4E0A\u4F20 (\u6700\u5927 2GB)`,
+    `\u{1F4E4}  \u53D1\u9001/\u8F6C\u53D1\u4EFB\u610F\u6587\u4EF6\u4E0A\u4F20 (\u6700\u5927 2GB\uFF0C\u8D26\u53F7\u7EA7\u4E0B\u8F7D\u5668\u4E0D\u53D7\u6B64\u9650\u5236)`,
     `\u{1F4CA}  /storage \u2014 \u67E5\u770B\u5B58\u50A8\u7A7A\u95F4`
   ].join("\n");
 }
@@ -1776,13 +1779,18 @@ function buildHelp() {
     ``,
     `**\u{1F4E4} \u6587\u4EF6\u4E0A\u4F20**`,
     `  \u76F4\u63A5\u53D1\u9001\u6216\u8F6C\u53D1\u6587\u4EF6\u5373\u53EF\u81EA\u52A8\u4E0A\u4F20`,
-    `  \u652F\u6301\u6240\u6709\u7C7B\u578B\uFF0C\u6700\u5927 2 GB`,
+    `  \u652F\u6301\u6240\u6709\u7C7B\u578B\uFF0C\u6700\u5927 2 GB\uFF0C\u8D26\u53F7\u7EA7\u4E0B\u8F7D\u5668\u4E0D\u53D7\u6B64\u9650\u5236`,
     `  \u591A\u6587\u4EF6\u540C\u65F6\u53D1\u9001\u4F1A\u81EA\u52A8\u5F52\u4E3A\u4E00\u7EC4`,
     ``,
     `**\u{1F6E0} \u53EF\u7528\u547D\u4EE4**`,
     `  /start \u2014 \u8EAB\u4EFD\u8BA4\u8BC1 / \u5F00\u59CB\u4F7F\u7528`,
     `  /setup\\_2fa \u2014 \u914D\u7F6E\u53CC\u91CD\u9A8C\u8BC1 (TOTP)`,
     `  /ytdlp <url> \u2014 \u4E0B\u8F7D\u89C6\u9891\u94FE\u63A5\u5230\u5B58\u50A8`,
+    `  /tg_sub <\u9891\u9053> \u2014 \u8BA2\u9605\u9891\u9053\u65B0\u6587\u4EF6\u81EA\u52A8\u540C\u6B65`,
+    `  /tg_subs \u2014 \u67E5\u770B\u9891\u9053\u8BA2\u9605`,
+    `  /tg_unsub <\u9891\u9053\u6216ID> \u2014 \u53D6\u6D88\u8BA2\u9605`,
+    `  /tg_date <\u9891\u9053> <\u5F00\u59CB\u65E5\u671F> <\u7ED3\u675F\u65E5\u671F> \u2014 \u6309\u65E5\u671F\u4E0B\u8F7D\u9891\u9053\u6587\u4EF6`,
+    `  /tg_jobs \u2014 \u67E5\u770B Telegram \u540E\u53F0\u4EFB\u52A1`,
     `  /storage \u2014 \u670D\u52A1\u5668 & \u5B58\u50A8\u7EDF\u8BA1`,
     `  /list [n] \u2014 \u6700\u8FD1\u4E0A\u4F20 (\u9ED8\u8BA4 10 \u6761)`,
     `  /tasks \u2014 \u5B9E\u65F6\u4F20\u8F93\u4EFB\u52A1\u961F\u5217`,
@@ -2618,6 +2626,7 @@ async function findDuplicateFile(name, folder, size, storageAccountId) {
 var UPLOAD_DIR = process.env.UPLOAD_DIR || "./data/uploads";
 var DEFAULT_TELEGRAM_DOWNLOAD_WORKERS = Math.max(1, Math.min(16, parseInt(process.env.TELEGRAM_DOWNLOAD_WORKERS || "4", 10) || 4));
 var TELEGRAM_DOWNLOAD_PART_SIZE = 512 * 1024;
+var TG_BATCH_DEFAULT_LIMIT = 50;
 function clampDownloadWorkers(value) {
   const parsed = parseInt(String(value ?? DEFAULT_TELEGRAM_DOWNLOAD_WORKERS), 10);
   const normalized = [4, 8, 12, 16].includes(parsed) ? parsed : DEFAULT_TELEGRAM_DOWNLOAD_WORKERS;
@@ -2639,6 +2648,10 @@ async function getFirstUserVisibleMediaMessage(userClient2, sourceEntity, source
   }
 }
 async function resolveDownloadSource(botClient, message) {
+  const activeUserClient = getTelegramUserClient();
+  if (activeUserClient && botClient === activeUserClient) {
+    return { client: botClient, message };
+  }
   const userDownloadEnabled = await getSetting("telegram_user_download_enabled", "false") === "true";
   if (!userDownloadEnabled) {
     return { client: botClient, message };
@@ -3623,6 +3636,101 @@ async function handleCleanupCallback(cleanupId) {
     console.error("\u{1F916} \u6E05\u7406\u5783\u573E\u7F13\u5B58\u5931\u8D25:", error);
     return { success: false, message: `\u6E05\u7406\u5931\u8D25: ${error.message}` };
   }
+}
+async function downloadTelegramChannelRange(botClient, requestMessage, source, startMessageId, limit = 50, direction = "older", explicitIds) {
+  const userClient2 = getTelegramUserClient();
+  if (!userClient2 || !isTelegramUserClientReady()) {
+    throw new Error("Telegram \u7528\u6237\u8D26\u53F7\u4E0B\u8F7D\u5668\u672A\u5C31\u7EEA\uFF1A\u8BF7\u5148\u914D\u7F6E TELEGRAM_USER_API_ID / TELEGRAM_USER_API_HASH \u5E76\u751F\u6210 user session");
+  }
+  const safeLimit = Math.max(1, Math.floor(limit || TG_BATCH_DEFAULT_LIMIT));
+  const ids = explicitIds?.filter((id) => id > 0) || Array.from({ length: safeLimit }, (_, index) => direction === "newer" ? startMessageId + index : startMessageId - index).filter((id) => id > 0);
+  if (ids.length === 0) {
+    throw new Error("\u8D77\u59CB\u6D88\u606F ID \u65E0\u6548");
+  }
+  const sourceEntity = source.startsWith("@") || /^-?\d+$/.test(source) || /^https?:\/\//i.test(source) ? source : `@${source}`;
+  const messages = await userClient2.getMessages(sourceEntity, { ids });
+  const chatId = requestMessage.chatId;
+  if (!chatId) {
+    throw new Error("\u65E0\u6CD5\u8BC6\u522B\u5F53\u524D Bot \u4F1A\u8BDD");
+  }
+  await checkAndResetSession(botClient, chatId);
+  let found = 0;
+  let skipped = 0;
+  const chatIdStr = chatId.toString();
+  for (const sourceMessage of messages) {
+    if (!sourceMessage) {
+      skipped += 1;
+      continue;
+    }
+    const fileInfo = extractFileInfo(sourceMessage);
+    if (!fileInfo) {
+      skipped += 1;
+      continue;
+    }
+    const { fileName, mimeType } = fileInfo;
+    const typeEmoji = getTypeEmoji(mimeType);
+    const totalSize = getEstimatedFileSize(sourceMessage);
+    const uploadId = `tg-range-${sourceMessage.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    registerUpload(chatIdStr, uploadId, {
+      fileName,
+      typeEmoji,
+      phase: "queued",
+      total: totalSize
+    });
+    const uploadItem = {
+      fileName,
+      mimeType,
+      message: sourceMessage,
+      status: "pending"
+    };
+    processFileUpload(userClient2, uploadItem).then(async () => {
+      if (uploadItem.status === "success") {
+        updateUploadPhase(chatIdStr, uploadId, {
+          phase: "success",
+          size: uploadItem.size,
+          providerName: storageManager.getProvider().name,
+          fileType: uploadItem.fileType
+        });
+      } else {
+        updateUploadPhase(chatIdStr, uploadId, { phase: "failed", error: uploadItem.error || "\u4E0B\u8F7D\u5931\u8D25" });
+      }
+      if (silentSessionMap.has(chatIdStr)) {
+        const session = syncSilentSessionTotals(chatIdStr) || getSilentSession(chatIdStr);
+        const files = getConsolidatedFiles(chatIdStr);
+        session.completed = Math.max(session.completed, files.filter((file) => file.phase === "success" || file.phase === "failed").length);
+        session.failed = Math.max(session.failed, files.filter((file) => file.phase === "failed").length);
+        await refreshSilentProgress(botClient, chatId);
+        await finalizeSilentSessionIfDone(botClient, chatId);
+      } else {
+        await refreshConsolidatedMessage(botClient, chatId);
+      }
+      setTimeout(() => removeUpload(chatIdStr, uploadId), 8e3);
+    }).catch(async (err) => {
+      console.error(`\u{1F916} \u9891\u9053\u6279\u91CF\u4E0B\u8F7D\u4EFB\u52A1\u5F02\u5E38: ${fileName}`, err);
+      updateUploadPhase(chatIdStr, uploadId, { phase: "failed", error: err instanceof Error ? err.message : String(err) });
+      if (silentSessionMap.has(chatIdStr)) {
+        const session = syncSilentSessionTotals(chatIdStr) || getSilentSession(chatIdStr);
+        session.failed += 1;
+        await refreshSilentProgress(botClient, chatId);
+        await finalizeSilentSessionIfDone(botClient, chatId);
+      } else {
+        await refreshConsolidatedMessage(botClient, chatId);
+      }
+      setTimeout(() => removeUpload(chatIdStr, uploadId), 8e3);
+    });
+    found += 1;
+  }
+  if (found > 0) {
+    await trySilentMode(botClient, chatId, requestMessage);
+    await refreshConsolidatedMessage(botClient, chatId, requestMessage);
+  }
+  return {
+    requested: ids.length,
+    found,
+    skipped,
+    firstId: ids[0],
+    lastId: ids[ids.length - 1]
+  };
 }
 async function handleFileUpload(client2, event) {
   const message = event.message;
@@ -4804,10 +4912,365 @@ Task: ${task.id}` });
   });
 }
 
+// src/services/telegramChannelJobs.ts
+init_db();
+var SUBSCRIPTION_INTERVAL_MS = Math.max(6e4, parseInt(process.env.TELEGRAM_SUBSCRIPTION_INTERVAL_MS || "300000", 10) || 3e5);
+var SUBSCRIPTION_SCAN_LIMIT = Math.max(1, parseInt(process.env.TELEGRAM_SUBSCRIPTION_SCAN_LIMIT || "100", 10) || 100);
+var subscriptionTimer = null;
+function requireUserClient() {
+  const userClient2 = getTelegramUserClient();
+  if (!userClient2 || !isTelegramUserClientReady()) {
+    throw new Error("Telegram \u7528\u6237\u8D26\u53F7\u4E0B\u8F7D\u5668\u672A\u5C31\u7EEA");
+  }
+  return userClient2;
+}
+function normalizeSource(source) {
+  const trimmed = source.trim();
+  if (!trimmed) throw new Error("\u9891\u9053\u4E0D\u80FD\u4E3A\u7A7A");
+  if (trimmed.startsWith("@") || /^-?\d+$/.test(trimmed) || /^https?:\/\//i.test(trimmed)) return trimmed;
+  return `@${trimmed}`;
+}
+function getEntityTitle(entity, fallback) {
+  return entity?.title || [entity?.firstName, entity?.lastName].filter(Boolean).join(" ") || entity?.username || fallback;
+}
+function messageHasMedia(message) {
+  if (!message) return false;
+  return Boolean(message.media || message.document || message.photo || message.video || message.audio || message.voice || message.sticker);
+}
+async function getLatestMessageId(userClient2, source) {
+  const [latest] = await userClient2.getMessages(source, { limit: 1 });
+  return latest?.id || 0;
+}
+async function getMessagesByDateRange(userClient2, source, startDate, endDate, maxScan = 5e3) {
+  const result = [];
+  let offsetId = 0;
+  while (result.length < maxScan) {
+    const batch = await userClient2.getMessages(source, { limit: Math.min(100, maxScan - result.length), offsetId });
+    if (!batch.length) break;
+    let reachedOlder = false;
+    for (const message of batch) {
+      offsetId = message.id;
+      const messageDate = new Date((message.date || 0) * 1e3);
+      if (messageDate > endDate) continue;
+      if (messageDate < startDate) {
+        reachedOlder = true;
+        break;
+      }
+      if (messageHasMedia(message)) result.push(message);
+    }
+    if (reachedOlder) break;
+  }
+  return result.sort((a, b) => a.id - b.id);
+}
+function parseDateOnly(value, endOfDay = false) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error("\u65E5\u671F\u683C\u5F0F\u5FC5\u987B\u662F YYYY-MM-DD");
+  const [, year, month, day] = match;
+  return /* @__PURE__ */ new Date(`${year}-${month}-${day}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
+}
+async function createJob(userId, chatId, kind, source, params) {
+  const result = await query(
+    `INSERT INTO telegram_background_jobs (user_id, chat_id, kind, source, params)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+    [userId, chatId || null, kind, source, JSON.stringify(params)]
+  );
+  return result.rows[0].id;
+}
+async function updateJob(jobId, updates) {
+  const entries = Object.entries(updates);
+  if (entries.length === 0) return;
+  const setSql = entries.map(([key], index) => `${key} = $${index + 2}`).join(", ");
+  await query(`UPDATE telegram_background_jobs SET ${setSql}, updated_at = NOW() WHERE id = $1`, [jobId, ...entries.map(([, value]) => value)]);
+}
+async function subscribeTelegramChannel(userId, chatId, sourceInput) {
+  const userClient2 = requireUserClient();
+  const source = normalizeSource(sourceInput);
+  const entity = await userClient2.getEntity(source);
+  const latestMessageId = await getLatestMessageId(userClient2, source);
+  const title = getEntityTitle(entity, source);
+  const result = await query(
+    `INSERT INTO telegram_channel_subscriptions (user_id, chat_id, source, title, last_message_id, enabled)
+         VALUES ($1, $2, $3, $4, $5, true)
+         ON CONFLICT (user_id, source)
+         DO UPDATE SET chat_id = EXCLUDED.chat_id, title = EXCLUDED.title, enabled = true, updated_at = NOW()
+         RETURNING id, source, title, last_message_id, enabled`,
+    [userId, chatId || null, source, title, latestMessageId]
+  );
+  return result.rows[0];
+}
+async function listTelegramSubscriptions(userId, includeDisabled = false) {
+  const result = await query(
+    `SELECT id, source, title, last_message_id, enabled, updated_at
+         FROM telegram_channel_subscriptions
+         WHERE user_id = $1
+           AND ($2::boolean OR enabled = true)
+         ORDER BY updated_at DESC`,
+    [userId, includeDisabled]
+  );
+  return result.rows;
+}
+async function unsubscribeTelegramChannel(userId, selector) {
+  const trimmed = selector.trim();
+  const normalizedSelector = /^@|^https?:\/\//i.test(trimmed) || /^-?\d+$/.test(trimmed) ? normalizeSource(trimmed) : trimmed;
+  const result = await query(
+    `UPDATE telegram_channel_subscriptions
+         SET enabled = false, updated_at = NOW()
+         WHERE user_id = $1 AND (source = $2 OR id::text LIKE $3)
+         RETURNING source, title`,
+    [userId, normalizedSelector, `${trimmed}%`]
+  );
+  return result.rows[0] || null;
+}
+async function enqueueTelegramDateDownload(botClient, requestMessage, userId, sourceInput, startDateText, endDateText) {
+  const userClient2 = requireUserClient();
+  const source = normalizeSource(sourceInput);
+  const startDate = parseDateOnly(startDateText);
+  const endDate = parseDateOnly(endDateText, true);
+  if (startDate > endDate) throw new Error("\u5F00\u59CB\u65E5\u671F\u4E0D\u80FD\u665A\u4E8E\u7ED3\u675F\u65E5\u671F");
+  const messages = await getMessagesByDateRange(userClient2, source, startDate, endDate);
+  const jobId = await createJob(userId, requestMessage.chatId?.toString(), "date_range", source, { startDate: startDateText, endDate: endDateText });
+  await updateJob(jobId, { status: "running", started_at: /* @__PURE__ */ new Date(), total_count: messages.length });
+  try {
+    const result = await downloadTelegramChannelRange(botClient, requestMessage, source, 0, messages.length, "older", messages.map((message) => message.id));
+    await updateJob(jobId, {
+      status: "completed",
+      enqueued_count: result.found,
+      skipped_count: result.skipped,
+      finished_at: /* @__PURE__ */ new Date()
+    });
+    return { jobId, ...result };
+  } catch (error) {
+    await updateJob(jobId, { status: "failed", error: error instanceof Error ? error.message : String(error), finished_at: /* @__PURE__ */ new Date() });
+    throw error;
+  }
+}
+async function listTelegramBackgroundJobs(userId, limit = 10) {
+  const result = await query(
+    `SELECT id, kind, source, status, total_count, enqueued_count, skipped_count, duplicate_count, error, created_at, updated_at
+         FROM telegram_background_jobs
+         WHERE user_id = $1
+         ORDER BY created_at DESC
+         LIMIT $2`,
+    [userId, limit]
+  );
+  return result.rows;
+}
+async function runSubscriptionScan(botClient) {
+  const userClient2 = getTelegramUserClient();
+  if (!userClient2 || !isTelegramUserClientReady()) return;
+  const result = await query(
+    `SELECT id, user_id, chat_id, source, last_message_id
+         FROM telegram_channel_subscriptions
+         WHERE enabled = true
+         ORDER BY updated_at ASC`
+  );
+  for (const row of result.rows) {
+    try {
+      const latestMessageId = await getLatestMessageId(userClient2, row.source);
+      const lastMessageId = Number(row.last_message_id || 0);
+      if (!latestMessageId || latestMessageId <= lastMessageId) continue;
+      const count = Math.min(SUBSCRIPTION_SCAN_LIMIT, latestMessageId - lastMessageId);
+      const ids = Array.from({ length: count }, (_, index) => lastMessageId + index + 1);
+      const jobId = await createJob(Number(row.user_id), row.chat_id?.toString(), "subscription_sync", row.source, { fromId: lastMessageId + 1, toId: latestMessageId });
+      await updateJob(jobId, { status: "running", started_at: /* @__PURE__ */ new Date(), total_count: ids.length });
+      const targetChat = row.chat_id || row.user_id;
+      const requestMessage = { chatId: targetChat, id: latestMessageId };
+      const downloadResult = await downloadTelegramChannelRange(botClient, requestMessage, row.source, 0, ids.length, "newer", ids);
+      await updateJob(jobId, {
+        status: "completed",
+        enqueued_count: downloadResult.found,
+        skipped_count: downloadResult.skipped,
+        finished_at: /* @__PURE__ */ new Date()
+      });
+      await query("UPDATE telegram_channel_subscriptions SET last_message_id = $1, updated_at = NOW() WHERE id = $2", [latestMessageId, row.id]);
+      if (downloadResult.found > 0) {
+        await botClient.sendMessage(targetChat, { message: `\u2705 \u8BA2\u9605 ${row.source} \u5DF2\u540C\u6B65 ${downloadResult.found} \u4E2A\u65B0\u6587\u4EF6\uFF0C\u8DF3\u8FC7 ${downloadResult.skipped} \u6761\u3002` }).catch(() => void 0);
+      }
+    } catch (error) {
+      console.error("\u{1F916} Telegram \u8BA2\u9605\u540C\u6B65\u5931\u8D25:", error);
+    }
+  }
+}
+function startTelegramSubscriptionWorker(botClient) {
+  if (subscriptionTimer) return;
+  subscriptionTimer = setInterval(() => {
+    runSubscriptionScan(botClient).catch((error) => console.error("\u{1F916} Telegram \u8BA2\u9605\u626B\u63CF\u5F02\u5E38:", error));
+  }, SUBSCRIPTION_INTERVAL_MS);
+  runSubscriptionScan(botClient).catch((error) => console.error("\u{1F916} Telegram \u8BA2\u9605\u626B\u63CF\u5F02\u5E38:", error));
+  console.log(`\u{1F916} Telegram \u9891\u9053\u8BA2\u9605\u626B\u63CF\u5DF2\u542F\u52A8\uFF0C\u95F4\u9694 ${Math.round(SUBSCRIPTION_INTERVAL_MS / 1e3)} \u79D2`);
+}
+
 // src/services/telegramBot.ts
 init_db();
 var SESSION_FILE = process.env.TELEGRAM_SESSION_FILE || "./data/telegram_session.txt";
 var client = null;
+var telegramWizardStates = /* @__PURE__ */ new Map();
+function isCancelInput(text) {
+  return /^(取消|cancel|退出|stop)$/i.test(text.trim());
+}
+function buildTelegramWizardPrompt(state) {
+  const title = state.kind === "tg_sub_manage" ? "\u{1F4E1} **\u8BA2\u9605\u9891\u9053\u7BA1\u7406**" : "\u{1F5D3}\uFE0F **\u6309\u65E5\u671F\u4E0B\u8F7D\u9891\u9053\u6587\u4EF6**";
+  if (state.step === "source") {
+    return [
+      title,
+      "",
+      "\u8BF7\u53D1\u9001\u9891\u9053\u7528\u6237\u540D\u6216\u94FE\u63A5\uFF1A",
+      "\u4F8B\u5982\uFF1A`@channel_username` \u6216 `https://t.me/channel_username`",
+      "",
+      "\u53D1\u9001\u201C\u53D6\u6D88\u201D\u53EF\u9000\u51FA\u3002"
+    ].join("\n");
+  }
+  if (state.step === "start_date") {
+    return [
+      title,
+      `\u{1F4CD} \u9891\u9053\uFF1A${state.source}`,
+      "",
+      "\u8BF7\u53D1\u9001\u5F00\u59CB\u65E5\u671F\uFF1A",
+      "\u683C\u5F0F\uFF1A`YYYY-MM-DD`\uFF0C\u4F8B\u5982 `2026-06-01`",
+      "",
+      "\u53D1\u9001\u201C\u53D6\u6D88\u201D\u53EF\u9000\u51FA\u3002"
+    ].join("\n");
+  }
+  return [
+    title,
+    `\u{1F4CD} \u9891\u9053\uFF1A${state.source}`,
+    `\u{1F5D3}\uFE0F \u5F00\u59CB\u65E5\u671F\uFF1A${state.startDate}`,
+    "",
+    "\u8BF7\u53D1\u9001\u7ED3\u675F\u65E5\u671F\uFF1A",
+    "\u683C\u5F0F\uFF1A`YYYY-MM-DD`\uFF0C\u4F8B\u5982 `2026-06-27`",
+    "",
+    "\u53D1\u9001\u201C\u53D6\u6D88\u201D\u53EF\u9000\u51FA\u3002"
+  ].join("\n");
+}
+function isDateOnly(text) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(text.trim());
+}
+async function startTelegramWizard(message, senderId, kind) {
+  const state = { kind, step: "source" };
+  telegramWizardStates.set(senderId, state);
+  if (kind === "tg_sub_manage") {
+    const rows = await listTelegramSubscriptions(senderId);
+    await message.reply({ message: buildSubscriptionManagePanel(rows) });
+    return;
+  }
+  await message.reply({ message: buildTelegramWizardPrompt(state) });
+}
+async function handleTelegramWizardMessage(message, senderId, text) {
+  const state = telegramWizardStates.get(senderId);
+  if (!state) return false;
+  const input = text.trim();
+  if (!input) return true;
+  if (isCancelInput(input)) {
+    telegramWizardStates.delete(senderId);
+    await message.reply({ message: "\u5DF2\u53D6\u6D88 Telegram \u9891\u9053\u64CD\u4F5C\u5411\u5BFC\u3002" });
+    return true;
+  }
+  if (state.step === "source") {
+    state.source = input;
+    if (state.kind === "tg_sub_manage") {
+      if (/^\d+$/.test(input)) {
+        const rows = await listTelegramSubscriptions(senderId);
+        const index = parseInt(input, 10) - 1;
+        const target = rows[index];
+        if (!target) {
+          await message.reply({ message: "\u274C \u6CA1\u6709\u8FD9\u4E2A\u5E8F\u53F7\uFF0C\u8BF7\u56DE\u590D\u5217\u8868\u4E2D\u7684\u5E8F\u53F7\uFF0C\u6216\u53D1\u9001\u9891\u9053\u7528\u6237\u540D/\u94FE\u63A5\u6765\u65B0\u589E\u8BA2\u9605\u3002" });
+          return true;
+        }
+        const sub = await unsubscribeTelegramChannel(senderId, target.id);
+        telegramWizardStates.delete(senderId);
+        const rowsAfterCancel = await listTelegramSubscriptions(senderId);
+        await message.reply({
+          message: [
+            sub ? `\u2705 \u5DF2\u53D6\u6D88\u8BA2\u9605 ${sub.title || sub.source}` : "\u274C \u672A\u627E\u5230\u8BE5\u8BA2\u9605",
+            "",
+            buildSubscriptionManagePanel(rowsAfterCancel)
+          ].join("\n")
+        });
+        return true;
+      }
+      if (!input.startsWith("@") && !/^https?:\/\/t\.me\//i.test(input) && !/^-?\d+$/.test(input)) {
+        await message.reply({ message: "\u274C \u8BF7\u56DE\u590D\u8BA2\u9605\u5E8F\u53F7\u6765\u53D6\u6D88\uFF0C\u6216\u53D1\u9001\u9891\u9053\u7528\u6237\u540D/\u94FE\u63A5\u6765\u65B0\u589E\u8BA2\u9605\uFF0C\u4F8B\u5982\uFF1A`@channel_username`\u3002" });
+        return true;
+      }
+      telegramWizardStates.delete(senderId);
+      try {
+        const sub = await subscribeTelegramChannel(senderId, message.chatId?.toString(), input);
+        await message.reply({ message: `\u2705 \u5DF2\u8BA2\u9605 ${sub.title || sub.source}
+\u{1F4CD} ${sub.source}
+\u4ECE\u5F53\u524D\u6700\u65B0\u6D88\u606F ID ${sub.last_message_id || 0} \u4E4B\u540E\u5F00\u59CB\u81EA\u52A8\u540C\u6B65\u3002` });
+      } catch (error) {
+        await message.reply({ message: `\u274C \u8BA2\u9605\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}` });
+      }
+      return true;
+    }
+    state.step = "start_date";
+    await message.reply({ message: buildTelegramWizardPrompt(state) });
+    return true;
+  }
+  if (state.step === "start_date") {
+    if (!isDateOnly(input)) {
+      await message.reply({ message: "\u274C \u65E5\u671F\u683C\u5F0F\u5FC5\u987B\u662F YYYY-MM-DD\uFF0C\u4F8B\u5982\uFF1A2026-06-01" });
+      return true;
+    }
+    state.startDate = input;
+    state.step = "end_date";
+    await message.reply({ message: buildTelegramWizardPrompt(state) });
+    return true;
+  }
+  if (!isDateOnly(input)) {
+    await message.reply({ message: "\u274C \u65E5\u671F\u683C\u5F0F\u5FC5\u987B\u662F YYYY-MM-DD\uFF0C\u4F8B\u5982\uFF1A2026-06-27" });
+    return true;
+  }
+  telegramWizardStates.delete(senderId);
+  try {
+    await message.reply({ message: `\u23F3 \u6B63\u5728\u6309\u65E5\u671F\u626B\u63CF ${state.source}\uFF1A${state.startDate} \u2192 ${input}...` });
+    const result = await enqueueTelegramDateDownload(client, message, senderId, state.source, state.startDate, input);
+    await message.reply({ message: `\u2705 \u65E5\u671F\u8303\u56F4\u4EFB\u52A1\u5DF2\u63D0\u4EA4
+ID: ${String(result.jobId).slice(0, 8)}
+\u5165\u961F: ${result.found}
+\u8DF3\u8FC7: ${result.skipped}` });
+  } catch (error) {
+    await message.reply({ message: `\u274C \u65E5\u671F\u4E0B\u8F7D\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}` });
+  }
+  return true;
+}
+function buildSubscriptionManagePanel(rows) {
+  return [
+    "\u{1F4E1} **\u9891\u9053\u8BA2\u9605\u7BA1\u7406**",
+    "",
+    rows.length > 0 ? rows.map((row, index) => `${index + 1}. ${row.enabled ? "\u2705" : "\u23F8\uFE0F"} ${row.title || row.source}
+   ${row.source} \xB7 last_id=${row.last_message_id || 0}`).join("\n") : "\u5F53\u524D\u6CA1\u6709\u542F\u7528\u4E2D\u7684\u8BA2\u9605\u3002",
+    "",
+    "\u56DE\u590D\u5E8F\u53F7\u53EF\u53D6\u6D88\u8BA2\u9605\u3002",
+    "\u56DE\u590D\u9891\u9053\u7528\u6237\u540D\u6216\u94FE\u63A5\u53EF\u65B0\u589E\u8BA2\u9605\u3002",
+    "\u4F8B\u5982\uFF1A`@channel_username` \u6216 `https://t.me/channel_username`",
+    "",
+    "\u53D1\u9001\u201C\u53D6\u6D88\u201D\u53EF\u9000\u51FA\u3002"
+  ].join("\n");
+}
+function formatSubscriptionList(rows) {
+  if (rows.length === 0) return "\u{1F4ED} \u6682\u65E0\u9891\u9053\u8BA2\u9605\u3002\n\n\u4F7F\u7528 `/tg_sub @\u9891\u9053` \u6DFB\u52A0\u8BA2\u9605\u3002";
+  return [
+    "\u{1F4E1} **\u9891\u9053\u8BA2\u9605**",
+    "",
+    ...rows.map((row, index) => `${index + 1}. ${row.enabled ? "\u2705" : "\u23F8\uFE0F"} ${row.title || row.source}
+   ${row.source} \xB7 last_id=${row.last_message_id || 0}
+   ID: ${String(row.id).slice(0, 8)}`)
+  ].join("\n");
+}
+function formatJobList(rows) {
+  if (rows.length === 0) return "\u{1F4ED} \u6682\u65E0 Telegram \u540E\u53F0\u4EFB\u52A1\u8BB0\u5F55\u3002";
+  return [
+    "\u{1F9FE} **Telegram \u540E\u53F0\u4EFB\u52A1**",
+    "",
+    ...rows.map((row, index) => [
+      `${index + 1}. ${row.status} \xB7 ${row.kind} \xB7 ${row.source}`,
+      `   \u5165\u961F ${row.enqueued_count || 0}/${row.total_count || 0} \xB7 \u8DF3\u8FC7 ${row.skipped_count || 0} \xB7 \u91CD\u590D ${row.duplicate_count || 0}`,
+      row.error ? `   \u9519\u8BEF: ${row.error}` : `   ID: ${String(row.id).slice(0, 8)}`
+    ].join("\n"))
+  ].join("\n");
+}
 function generatePasswordKeyboard(currentLength) {
   const display = "\u25CF".repeat(currentLength) + "-".repeat(Math.max(0, 4 - currentLength));
   const displayWithSpaces = display.split("").join(" ");
@@ -5018,6 +5481,9 @@ async function initTelegramBot() {
           new Api3.BotCommand({ command: "start", description: "\u5F00\u59CB\u4F7F\u7528 / \u9A8C\u8BC1\u8EAB\u4EFD" }),
           new Api3.BotCommand({ command: "setup_2fa", description: "\u914D\u7F6E\u53CC\u91CD\u9A8C\u8BC1 (2FA)" }),
           new Api3.BotCommand({ command: "ytdlp", description: "\u89E3\u6790\u5E76\u4E0B\u8F7D\u94FE\u63A5\u5230\u5B58\u50A8\u6E90" }),
+          new Api3.BotCommand({ command: "tg_sub", description: "\u8BA2\u9605\u9891\u9053\u81EA\u52A8\u540C\u6B65" }),
+          new Api3.BotCommand({ command: "tg_date", description: "\u6309\u65E5\u671F\u4E0B\u8F7D\u9891\u9053\u6587\u4EF6" }),
+          new Api3.BotCommand({ command: "tg_jobs", description: "\u67E5\u770B Telegram \u540E\u53F0\u4EFB\u52A1" }),
           new Api3.BotCommand({ command: "storage", description: "\u67E5\u770B\u5B58\u50A8\u7EDF\u8BA1" }),
           new Api3.BotCommand({ command: "list", description: "\u67E5\u770B\u4E0A\u4F20\u8BB0\u5F55" }),
           new Api3.BotCommand({ command: "tasks", description: "\u67E5\u770B\u4EFB\u52A1\u72B6\u6001" }),
@@ -5062,6 +5528,7 @@ async function initTelegramBot() {
       console.log("\u{1F9F9} \u542F\u52A8\u5B64\u513F\u6E05\u7406\u5DF2\u8DF3\u8FC7\uFF1AAUTO_CLEANUP_ORPHANS=false");
     }
     startPeriodicCleanup();
+    startTelegramSubscriptionWorker(client);
     client.addEventHandler(async (event) => {
       if (!client) return;
       try {
@@ -5141,6 +5608,100 @@ async function initTelegramBot() {
             await handleYtDlpCommand(message, url);
             return;
           }
+        }
+        if (text === "/tg_sub" || text === "/tg_subscribe") {
+          if (!isAuthenticated(senderId)) {
+            await message.reply({ message: MSG.AUTH_REQUIRED });
+            return;
+          }
+          await startTelegramWizard(message, senderId, "tg_sub_manage");
+          return;
+        }
+        if (text === "/tg_date") {
+          if (!isAuthenticated(senderId)) {
+            await message.reply({ message: MSG.AUTH_REQUIRED });
+            return;
+          }
+          await startTelegramWizard(message, senderId, "tg_date");
+          return;
+        }
+        if (!text.startsWith("/")) {
+          const handledTelegramWizard = await handleTelegramWizardMessage(message, senderId, text);
+          if (handledTelegramWizard) return;
+        }
+        if (text === "/tg_subs" || text === "/tg_subscriptions") {
+          if (!isAuthenticated(senderId)) {
+            await message.reply({ message: MSG.AUTH_REQUIRED });
+            return;
+          }
+          const rows = await listTelegramSubscriptions(senderId);
+          await message.reply({ message: formatSubscriptionList(rows) });
+          return;
+        }
+        if (text.startsWith("/tg_sub ") || text.startsWith("/tg_subscribe ")) {
+          if (!isAuthenticated(senderId)) {
+            await message.reply({ message: MSG.AUTH_REQUIRED });
+            return;
+          }
+          const source = text.split(/\s+/).slice(1).join(" ").trim();
+          if (!source) {
+            await message.reply({ message: "\u274C \u7528\u6CD5\uFF1A/tg_sub @\u9891\u9053" });
+            return;
+          }
+          try {
+            const sub = await subscribeTelegramChannel(senderId, chatId.toString(), source);
+            await message.reply({ message: `\u2705 \u5DF2\u8BA2\u9605 ${sub.title || sub.source}
+\u{1F4CD} ${sub.source}
+\u4ECE\u5F53\u524D\u6700\u65B0\u6D88\u606F ID ${sub.last_message_id || 0} \u4E4B\u540E\u5F00\u59CB\u81EA\u52A8\u540C\u6B65\u3002` });
+          } catch (error) {
+            await message.reply({ message: `\u274C \u8BA2\u9605\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}` });
+          }
+          return;
+        }
+        if (text.startsWith("/tg_unsub ") || text.startsWith("/tg_unsubscribe ")) {
+          if (!isAuthenticated(senderId)) {
+            await message.reply({ message: MSG.AUTH_REQUIRED });
+            return;
+          }
+          const selector = text.split(/\s+/).slice(1).join(" ").trim();
+          if (!selector) {
+            await message.reply({ message: "\u274C \u7528\u6CD5\uFF1A/tg_unsub @\u9891\u9053 \u6216 /tg_unsub <\u8BA2\u9605ID\u524D\u7F00>" });
+            return;
+          }
+          const sub = await unsubscribeTelegramChannel(senderId, selector);
+          await message.reply({ message: sub ? `\u2705 \u5DF2\u53D6\u6D88\u8BA2\u9605 ${sub.title || sub.source}` : "\u274C \u672A\u627E\u5230\u8BE5\u8BA2\u9605" });
+          return;
+        }
+        if (text.startsWith("/tg_date ")) {
+          if (!isAuthenticated(senderId)) {
+            await message.reply({ message: MSG.AUTH_REQUIRED });
+            return;
+          }
+          const parts = text.split(/\s+/).slice(1);
+          if (parts.length !== 3) {
+            await message.reply({ message: "\u274C \u7528\u6CD5\uFF1A/tg_date @\u9891\u9053 YYYY-MM-DD YYYY-MM-DD" });
+            return;
+          }
+          try {
+            await message.reply({ message: `\u23F3 \u6B63\u5728\u6309\u65E5\u671F\u626B\u63CF ${parts[0]}\uFF1A${parts[1]} \u2192 ${parts[2]}...` });
+            const result = await enqueueTelegramDateDownload(client, message, senderId, parts[0], parts[1], parts[2]);
+            await message.reply({ message: `\u2705 \u65E5\u671F\u8303\u56F4\u4EFB\u52A1\u5DF2\u63D0\u4EA4
+ID: ${String(result.jobId).slice(0, 8)}
+\u5165\u961F: ${result.found}
+\u8DF3\u8FC7: ${result.skipped}` });
+          } catch (error) {
+            await message.reply({ message: `\u274C \u65E5\u671F\u4E0B\u8F7D\u5931\u8D25: ${error instanceof Error ? error.message : String(error)}` });
+          }
+          return;
+        }
+        if (text === "/tg_jobs" || text === "/tg_tasks") {
+          if (!isAuthenticated(senderId)) {
+            await message.reply({ message: MSG.AUTH_REQUIRED });
+            return;
+          }
+          const jobs = await listTelegramBackgroundJobs(senderId);
+          await message.reply({ message: formatJobList(jobs) });
+          return;
         }
         if (text === "/storage") {
           if (!isAuthenticated(senderId)) {
@@ -5291,7 +5852,7 @@ async function initTelegramBot() {
         }
       }
     }, new Raw({}));
-    console.log("\u{1F916} Telegram Bot \u542F\u52A8\u6210\u529F! (\u652F\u6301\u6700\u5927 2GB \u6587\u4EF6)");
+    console.log("\u{1F916} Telegram Bot \u542F\u52A8\u6210\u529F! (\u6700\u5927 2GB\uFF0C\u8D26\u53F7\u7EA7\u4E0B\u8F7D\u5668\u4E0D\u53D7\u6B64\u9650\u5236)");
   } catch (error) {
     console.error("\u{1F916} Telegram Bot \u542F\u52A8\u5931\u8D25:", error);
   }
@@ -7137,7 +7698,7 @@ app.listen(PORT, async () => {
 \u{1F4C1} \u4E0A\u4F20\u76EE\u5F55: ${path17.resolve(UPLOAD_DIR7)}
 \u{1F5BC}\uFE0F  \u7F29\u7565\u56FE\u76EE\u5F55: ${path17.resolve(THUMBNAIL_DIR6)}
 \u{1F510} \u5BC6\u7801\u4FDD\u62A4: ${passwordProtected ? "\u5DF2\u542F\u7528" : "\u672A\u542F\u7528"}
-\u{1F916} Telegram Bot: ${telegramEnabled ? "\u5DF2\u542F\u7528 (\u652F\u63012GB\u6587\u4EF6)" : "\u672A\u542F\u7528"}
+\u{1F916} Telegram Bot: ${telegramEnabled ? "\u5DF2\u542F\u7528 (\u6700\u5927 2GB\uFF0C\u8D26\u53F7\u7EA7\u4E0B\u8F7D\u5668\u4E0D\u53D7\u6B64\u9650\u5236)" : "\u672A\u542F\u7528"}
 \u{1F464} Telegram User Download: ${isTelegramUserClientReady() ? "\u5DF2\u542F\u7528" : "\u672A\u542F\u7528"}
     `);
 });

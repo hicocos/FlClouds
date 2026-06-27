@@ -10,6 +10,14 @@ import { is2FAEnabled, generateOTPAuthUrl, verifyTOTP, activate2FA } from '../ut
 import { handleStart, handleHelp, handleStorage, handleList, handleDelete, handleTasks, handleStopTasks, handleDownloadWorkers, handleDownloadWorkersCallback, handlePathRules, handlePathRulesCallback, handleDuplicateMode, handleDuplicateModeCallback, handleCleanupSettings, handleCleanupSettingsCallback } from './telegramCommands.js';
 import { handleFileUpload, handleCleanupCallback } from './telegramUpload.js';
 import { handleYtDlpCommand } from './ytDlpDownload.js';
+import {
+    enqueueTelegramDateDownload,
+    listTelegramBackgroundJobs,
+    listTelegramSubscriptions,
+    startTelegramSubscriptionWorker,
+    subscribeTelegramChannel,
+    unsubscribeTelegramChannel,
+} from './telegramChannelJobs.js';
 import { cleanupOrphanFiles, isAutoCleanupEnabled, startPeriodicCleanup } from './orphanCleanup.js';
 import { verifyPassword } from '../utils/telegramUtils.js';
 import { MSG, buildStartPrompt, buildAuthSuccess, build2FASetupCaption, buildCleanupNotice } from '../utils/telegramMessages.js';
@@ -20,6 +28,197 @@ const SESSION_FILE = process.env.TELEGRAM_SESSION_FILE || './data/telegram_sessi
 
 // GramJS Client
 let client: TelegramClient | null = null;
+
+type TelegramWizardKind = 'tg_sub_manage' | 'tg_date';
+type TelegramWizardStep = 'source' | 'start_date' | 'end_date';
+
+interface TelegramWizardState {
+    kind: TelegramWizardKind;
+    step: TelegramWizardStep;
+    source?: string;
+    startDate?: string;
+}
+
+const telegramWizardStates = new Map<number, TelegramWizardState>();
+
+function isCancelInput(text: string): boolean {
+    return /^(取消|cancel|退出|stop)$/i.test(text.trim());
+}
+
+function buildTelegramWizardPrompt(state: TelegramWizardState): string {
+    const title = state.kind === 'tg_sub_manage'
+        ? '📡 **订阅频道管理**'
+        : '🗓️ **按日期下载频道文件**';
+
+    if (state.step === 'source') {
+        return [
+            title,
+            '',
+            '请发送频道用户名或链接：',
+            '例如：`@channel_username` 或 `https://t.me/channel_username`',
+            '',
+            '发送“取消”可退出。',
+        ].join('\n');
+    }
+
+    if (state.step === 'start_date') {
+        return [
+            title,
+            `📍 频道：${state.source}`,
+            '',
+            '请发送开始日期：',
+            '格式：`YYYY-MM-DD`，例如 `2026-06-01`',
+            '',
+            '发送“取消”可退出。',
+        ].join('\n');
+    }
+
+    return [
+        title,
+        `📍 频道：${state.source}`,
+        `🗓️ 开始日期：${state.startDate}`,
+        '',
+        '请发送结束日期：',
+        '格式：`YYYY-MM-DD`，例如 `2026-06-27`',
+        '',
+        '发送“取消”可退出。',
+    ].join('\n');
+}
+
+function isDateOnly(text: string): boolean {
+    return /^\d{4}-\d{2}-\d{2}$/.test(text.trim());
+}
+
+async function startTelegramWizard(message: Api.Message, senderId: number, kind: TelegramWizardKind): Promise<void> {
+    const state: TelegramWizardState = { kind, step: 'source' };
+    telegramWizardStates.set(senderId, state);
+    if (kind === 'tg_sub_manage') {
+        const rows = await listTelegramSubscriptions(senderId);
+        await message.reply({ message: buildSubscriptionManagePanel(rows) });
+        return;
+    }
+    await message.reply({ message: buildTelegramWizardPrompt(state) });
+}
+
+async function handleTelegramWizardMessage(message: Api.Message, senderId: number, text: string): Promise<boolean> {
+    const state = telegramWizardStates.get(senderId);
+    if (!state) return false;
+
+    const input = text.trim();
+    if (!input) return true;
+    if (isCancelInput(input)) {
+        telegramWizardStates.delete(senderId);
+        await message.reply({ message: '已取消 Telegram 频道操作向导。' });
+        return true;
+    }
+
+    if (state.step === 'source') {
+        state.source = input;
+        if (state.kind === 'tg_sub_manage') {
+            if (/^\d+$/.test(input)) {
+                const rows = await listTelegramSubscriptions(senderId);
+                const index = parseInt(input, 10) - 1;
+                const target = rows[index];
+                if (!target) {
+                    await message.reply({ message: '❌ 没有这个序号，请回复列表中的序号，或发送频道用户名/链接来新增订阅。' });
+                    return true;
+                }
+                const sub = await unsubscribeTelegramChannel(senderId, target.id);
+                telegramWizardStates.delete(senderId);
+                const rowsAfterCancel = await listTelegramSubscriptions(senderId);
+                await message.reply({
+                    message: [
+                        sub ? `✅ 已取消订阅 ${sub.title || sub.source}` : '❌ 未找到该订阅',
+                        '',
+                        buildSubscriptionManagePanel(rowsAfterCancel),
+                    ].join('\n')
+                });
+                return true;
+            }
+
+            if (!input.startsWith('@') && !/^https?:\/\/t\.me\//i.test(input) && !/^-?\d+$/.test(input)) {
+                await message.reply({ message: '❌ 请回复订阅序号来取消，或发送频道用户名/链接来新增订阅，例如：`@channel_username`。' });
+                return true;
+            }
+
+            telegramWizardStates.delete(senderId);
+            try {
+                const sub = await subscribeTelegramChannel(senderId, message.chatId?.toString(), input);
+                await message.reply({ message: `✅ 已订阅 ${sub.title || sub.source}\n📍 ${sub.source}\n从当前最新消息 ID ${sub.last_message_id || 0} 之后开始自动同步。` });
+            } catch (error) {
+                await message.reply({ message: `❌ 订阅失败: ${error instanceof Error ? error.message : String(error)}` });
+            }
+            return true;
+        }
+        state.step = 'start_date';
+        await message.reply({ message: buildTelegramWizardPrompt(state) });
+        return true;
+    }
+
+    if (state.step === 'start_date') {
+        if (!isDateOnly(input)) {
+            await message.reply({ message: '❌ 日期格式必须是 YYYY-MM-DD，例如：2026-06-01' });
+            return true;
+        }
+        state.startDate = input;
+        state.step = 'end_date';
+        await message.reply({ message: buildTelegramWizardPrompt(state) });
+        return true;
+    }
+
+    if (!isDateOnly(input)) {
+        await message.reply({ message: '❌ 日期格式必须是 YYYY-MM-DD，例如：2026-06-27' });
+        return true;
+    }
+
+    telegramWizardStates.delete(senderId);
+    try {
+        await message.reply({ message: `⏳ 正在按日期扫描 ${state.source}：${state.startDate} → ${input}...` });
+        const result = await enqueueTelegramDateDownload(client!, message, senderId, state.source!, state.startDate!, input);
+        await message.reply({ message: `✅ 日期范围任务已提交\nID: ${String(result.jobId).slice(0, 8)}\n入队: ${result.found}\n跳过: ${result.skipped}` });
+    } catch (error) {
+        await message.reply({ message: `❌ 日期下载失败: ${error instanceof Error ? error.message : String(error)}` });
+    }
+    return true;
+}
+
+function buildSubscriptionManagePanel(rows: any[]): string {
+    return [
+        '📡 **频道订阅管理**',
+        '',
+        rows.length > 0
+            ? rows.map((row, index) => `${index + 1}. ${row.enabled ? '✅' : '⏸️'} ${row.title || row.source}\n   ${row.source} · last_id=${row.last_message_id || 0}`).join('\n')
+            : '当前没有启用中的订阅。',
+        '',
+        '回复序号可取消订阅。',
+        '回复频道用户名或链接可新增订阅。',
+        '例如：`@channel_username` 或 `https://t.me/channel_username`',
+        '',
+        '发送“取消”可退出。',
+    ].join('\n');
+}
+
+function formatSubscriptionList(rows: any[]): string {
+    if (rows.length === 0) return '📭 暂无频道订阅。\n\n使用 `/tg_sub @频道` 添加订阅。';
+    return [
+        '📡 **频道订阅**',
+        '',
+        ...rows.map((row, index) => `${index + 1}. ${row.enabled ? '✅' : '⏸️'} ${row.title || row.source}\n   ${row.source} · last_id=${row.last_message_id || 0}\n   ID: ${String(row.id).slice(0, 8)}`),
+    ].join('\n');
+}
+
+function formatJobList(rows: any[]): string {
+    if (rows.length === 0) return '📭 暂无 Telegram 后台任务记录。';
+    return [
+        '🧾 **Telegram 后台任务**',
+        '',
+        ...rows.map((row, index) => [
+            `${index + 1}. ${row.status} · ${row.kind} · ${row.source}`,
+            `   入队 ${row.enqueued_count || 0}/${row.total_count || 0} · 跳过 ${row.skipped_count || 0} · 重复 ${row.duplicate_count || 0}`,
+            row.error ? `   错误: ${row.error}` : `   ID: ${String(row.id).slice(0, 8)}`,
+        ].join('\n')),
+    ].join('\n');
+}
 
 // Generate Password Keyboard
 function generatePasswordKeyboard(currentLength: number): Api.ReplyInlineMarkup {
@@ -292,6 +491,9 @@ export async function initTelegramBot(): Promise<void> {
                     new Api.BotCommand({ command: 'start', description: '开始使用 / 验证身份' }),
                     new Api.BotCommand({ command: 'setup_2fa', description: '配置双重验证 (2FA)' }),
                     new Api.BotCommand({ command: 'ytdlp', description: '解析并下载链接到存储源' }),
+                    new Api.BotCommand({ command: 'tg_sub', description: '订阅频道自动同步' }),
+                    new Api.BotCommand({ command: 'tg_date', description: '按日期下载频道文件' }),
+                    new Api.BotCommand({ command: 'tg_jobs', description: '查看 Telegram 后台任务' }),
                     new Api.BotCommand({ command: 'storage', description: '查看存储统计' }),
                     new Api.BotCommand({ command: 'list', description: '查看上传记录' }),
                     new Api.BotCommand({ command: 'tasks', description: '查看任务状态' }),
@@ -344,6 +546,7 @@ export async function initTelegramBot(): Promise<void> {
 
         // 启动定期清理（每小时）
         startPeriodicCleanup();
+        startTelegramSubscriptionWorker(client);
 
         // Handle Messages
         client.addEventHandler(async (event: NewMessageEvent) => {
@@ -447,6 +650,103 @@ export async function initTelegramBot(): Promise<void> {
                     await handleYtDlpCommand(message, url);
                     return;
                 }
+                }
+
+                if (text === '/tg_sub' || text === '/tg_subscribe') {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    await startTelegramWizard(message, senderId, 'tg_sub_manage');
+                    return;
+                }
+
+                if (text === '/tg_date') {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    await startTelegramWizard(message, senderId, 'tg_date');
+                    return;
+                }
+
+                if (!text.startsWith('/')) {
+                    const handledTelegramWizard = await handleTelegramWizardMessage(message, senderId, text);
+                    if (handledTelegramWizard) return;
+                }
+
+                if (text === '/tg_subs' || text === '/tg_subscriptions') {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    const rows = await listTelegramSubscriptions(senderId);
+                    await message.reply({ message: formatSubscriptionList(rows) });
+                    return;
+                }
+
+                if (text.startsWith('/tg_sub ') || text.startsWith('/tg_subscribe ')) {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    const source = text.split(/\s+/).slice(1).join(' ').trim();
+                    if (!source) {
+                        await message.reply({ message: '❌ 用法：/tg_sub @频道' });
+                        return;
+                    }
+                    try {
+                        const sub = await subscribeTelegramChannel(senderId, chatId.toString(), source);
+                        await message.reply({ message: `✅ 已订阅 ${sub.title || sub.source}\n📍 ${sub.source}\n从当前最新消息 ID ${sub.last_message_id || 0} 之后开始自动同步。` });
+                    } catch (error) {
+                        await message.reply({ message: `❌ 订阅失败: ${error instanceof Error ? error.message : String(error)}` });
+                    }
+                    return;
+                }
+
+                if (text.startsWith('/tg_unsub ') || text.startsWith('/tg_unsubscribe ')) {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    const selector = text.split(/\s+/).slice(1).join(' ').trim();
+                    if (!selector) {
+                        await message.reply({ message: '❌ 用法：/tg_unsub @频道 或 /tg_unsub <订阅ID前缀>' });
+                        return;
+                    }
+                    const sub = await unsubscribeTelegramChannel(senderId, selector);
+                    await message.reply({ message: sub ? `✅ 已取消订阅 ${sub.title || sub.source}` : '❌ 未找到该订阅' });
+                    return;
+                }
+
+                if (text.startsWith('/tg_date ')) {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    const parts = text.split(/\s+/).slice(1);
+                    if (parts.length !== 3) {
+                        await message.reply({ message: '❌ 用法：/tg_date @频道 YYYY-MM-DD YYYY-MM-DD' });
+                        return;
+                    }
+                    try {
+                        await message.reply({ message: `⏳ 正在按日期扫描 ${parts[0]}：${parts[1]} → ${parts[2]}...` });
+                        const result = await enqueueTelegramDateDownload(client, message, senderId, parts[0], parts[1], parts[2]);
+                        await message.reply({ message: `✅ 日期范围任务已提交\nID: ${String(result.jobId).slice(0, 8)}\n入队: ${result.found}\n跳过: ${result.skipped}` });
+                    } catch (error) {
+                        await message.reply({ message: `❌ 日期下载失败: ${error instanceof Error ? error.message : String(error)}` });
+                    }
+                    return;
+                }
+
+                if (text === '/tg_jobs' || text === '/tg_tasks') {
+                    if (!isAuthenticated(senderId)) {
+                        await message.reply({ message: MSG.AUTH_REQUIRED });
+                        return;
+                    }
+                    const jobs = await listTelegramBackgroundJobs(senderId);
+                    await message.reply({ message: formatJobList(jobs) });
+                    return;
                 }
 
                 if (text === '/storage') {
@@ -635,7 +935,7 @@ export async function initTelegramBot(): Promise<void> {
             }
         }, new Raw({}));
 
-        console.log('🤖 Telegram Bot 启动成功! (支持最大 2GB 文件)');
+        console.log('🤖 Telegram Bot 启动成功! (最大 2GB，账号级下载器不受此限制)');
 
     } catch (error) {
         console.error('🤖 Telegram Bot 启动失败:', error);

@@ -36,6 +36,7 @@ import { findDuplicateFile, getDuplicateMode } from '../utils/duplicatePolicy.js
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './data/uploads';
 const DEFAULT_TELEGRAM_DOWNLOAD_WORKERS = Math.max(1, Math.min(16, parseInt(process.env.TELEGRAM_DOWNLOAD_WORKERS || '4', 10) || 4));
 const TELEGRAM_DOWNLOAD_PART_SIZE = 512 * 1024;
+const TG_BATCH_DEFAULT_LIMIT = 50;
 
 function clampDownloadWorkers(value: unknown): number {
     const parsed = parseInt(String(value ?? DEFAULT_TELEGRAM_DOWNLOAD_WORKERS), 10);
@@ -67,6 +68,11 @@ async function getFirstUserVisibleMediaMessage(
 }
 
 async function resolveDownloadSource(botClient: TelegramClient, message: Api.Message): Promise<{ client: TelegramClient; message: Api.Message }> {
+    const activeUserClient = getTelegramUserClient();
+    if (activeUserClient && botClient === activeUserClient) {
+        return { client: botClient, message };
+    }
+
     const userDownloadEnabled = (await getSetting('telegram_user_download_enabled', 'false')) === 'true';
     if (!userDownloadEnabled) {
         return { client: botClient, message };
@@ -1413,6 +1419,163 @@ export async function handleCleanupCallback(cleanupId: string): Promise<{ succes
         console.error('🤖 清理垃圾缓存失败:', error);
         return { success: false, message: `清理失败: ${(error as Error).message}` };
     }
+}
+
+export async function getTelegramDownloadPreview(messages: Api.Message[]): Promise<{ mediaCount: number; duplicateCount: number; newCount: number; skippedCount: number }> {
+    const activeAccountId = storageManager.getActiveAccountId();
+    const storageRules = await getStoragePathRules();
+    let mediaCount = 0;
+    let duplicateCount = 0;
+    let skippedCount = 0;
+
+    for (const message of messages) {
+        const fileInfo = extractFileInfo(message);
+        if (!fileInfo) {
+            skippedCount += 1;
+            continue;
+        }
+        mediaCount += 1;
+        const chatName = await getTelegramChatName(message);
+        const storageFolder = buildStorageFolderWithRules({
+            source: 'telegram',
+            chatName,
+            mimeType: fileInfo.mimeType,
+            fileName: fileInfo.fileName,
+        }, storageRules);
+        const duplicate = await findDuplicateFile(fileInfo.fileName, storageFolder, getEstimatedFileSize(message), activeAccountId);
+        if (duplicate) duplicateCount += 1;
+    }
+
+    return {
+        mediaCount,
+        duplicateCount,
+        newCount: Math.max(0, mediaCount - duplicateCount),
+        skippedCount,
+    };
+}
+
+export async function downloadTelegramChannelRange(
+    botClient: TelegramClient,
+    requestMessage: Api.Message,
+    source: string,
+    startMessageId: number,
+    limit: number = 50,
+    direction: 'older' | 'newer' = 'older',
+    explicitIds?: number[],
+): Promise<{ requested: number; found: number; skipped: number; firstId: number; lastId: number }> {
+    const userClient = getTelegramUserClient();
+    if (!userClient || !isTelegramUserClientReady()) {
+        throw new Error('Telegram 用户账号下载器未就绪：请先配置 TELEGRAM_USER_API_ID / TELEGRAM_USER_API_HASH 并生成 user session');
+    }
+
+    const safeLimit = Math.max(1, Math.floor(limit || TG_BATCH_DEFAULT_LIMIT));
+    const ids = explicitIds?.filter(id => id > 0) || Array.from({ length: safeLimit }, (_, index) => (
+        direction === 'newer' ? startMessageId + index : startMessageId - index
+    )).filter(id => id > 0);
+
+    if (ids.length === 0) {
+        throw new Error('起始消息 ID 无效');
+    }
+
+    const sourceEntity = source.startsWith('@') || /^-?\d+$/.test(source) || /^https?:\/\//i.test(source)
+        ? source
+        : `@${source}`;
+
+    const messages = await userClient.getMessages(sourceEntity as any, { ids });
+    const chatId = requestMessage.chatId;
+    if (!chatId) {
+        throw new Error('无法识别当前 Bot 会话');
+    }
+
+    await checkAndResetSession(botClient, chatId);
+
+    let found = 0;
+    let skipped = 0;
+    const chatIdStr = chatId.toString();
+
+    for (const sourceMessage of messages) {
+        if (!sourceMessage) {
+            skipped += 1;
+            continue;
+        }
+
+        const fileInfo = extractFileInfo(sourceMessage);
+        if (!fileInfo) {
+            skipped += 1;
+            continue;
+        }
+
+        const { fileName, mimeType } = fileInfo;
+        const typeEmoji = getTypeEmoji(mimeType);
+        const totalSize = getEstimatedFileSize(sourceMessage);
+        const uploadId = `tg-range-${sourceMessage.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        registerUpload(chatIdStr, uploadId, {
+            fileName,
+            typeEmoji,
+            phase: 'queued',
+            total: totalSize,
+        });
+
+        const uploadItem: FileUploadItem = {
+            fileName,
+            mimeType,
+            message: sourceMessage as Api.Message,
+            status: 'pending',
+        };
+
+        processFileUpload(userClient, uploadItem).then(async () => {
+            if (uploadItem.status === 'success') {
+                updateUploadPhase(chatIdStr, uploadId, {
+                    phase: 'success',
+                    size: uploadItem.size,
+                    providerName: storageManager.getProvider().name,
+                    fileType: uploadItem.fileType,
+                });
+            } else {
+                updateUploadPhase(chatIdStr, uploadId, { phase: 'failed', error: uploadItem.error || '下载失败' });
+            }
+
+            if (silentSessionMap.has(chatIdStr)) {
+                const session = syncSilentSessionTotals(chatIdStr) || getSilentSession(chatIdStr);
+                const files = getConsolidatedFiles(chatIdStr);
+                session.completed = Math.max(session.completed, files.filter(file => file.phase === 'success' || file.phase === 'failed').length);
+                session.failed = Math.max(session.failed, files.filter(file => file.phase === 'failed').length);
+                await refreshSilentProgress(botClient, chatId);
+                await finalizeSilentSessionIfDone(botClient, chatId);
+            } else {
+                await refreshConsolidatedMessage(botClient, chatId);
+            }
+
+            setTimeout(() => removeUpload(chatIdStr, uploadId), 8000);
+        }).catch(async err => {
+            console.error(`🤖 频道批量下载任务异常: ${fileName}`, err);
+            updateUploadPhase(chatIdStr, uploadId, { phase: 'failed', error: err instanceof Error ? err.message : String(err) });
+            if (silentSessionMap.has(chatIdStr)) {
+                const session = syncSilentSessionTotals(chatIdStr) || getSilentSession(chatIdStr);
+                session.failed += 1;
+                await refreshSilentProgress(botClient, chatId);
+                await finalizeSilentSessionIfDone(botClient, chatId);
+            } else {
+                await refreshConsolidatedMessage(botClient, chatId);
+            }
+            setTimeout(() => removeUpload(chatIdStr, uploadId), 8000);
+        });
+        found += 1;
+    }
+
+    if (found > 0) {
+        await trySilentMode(botClient, chatId, requestMessage);
+        await refreshConsolidatedMessage(botClient, chatId, requestMessage);
+    }
+
+    return {
+        requested: ids.length,
+        found,
+        skipped,
+        firstId: ids[0],
+        lastId: ids[ids.length - 1],
+    };
 }
 
 // Main handler for file uploads
