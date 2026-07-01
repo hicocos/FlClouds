@@ -27,8 +27,15 @@ function getSignedUrlRouteParts(req: Request): { id?: string; type: SignedUrlTyp
 }
 
 // 生成签名
-export function generateSignature(fileId: string, type: SignedUrlType, expires: number): string {
-    const data = `${fileId}:${type}:${expires}`;
+export function generateSignature(fileId: string, type: SignedUrlType, expires: number): string;
+export function generateSignature(fileId: string, expires: number): string;
+export function generateSignature(fileId: string, typeOrExpires: SignedUrlType | number, expires?: number): string {
+    const type = typeof typeOrExpires === 'number' ? 'preview' : typeOrExpires;
+    const expiresTimestamp = typeof typeOrExpires === 'number' ? typeOrExpires : expires;
+    if (typeof expiresTimestamp !== 'number') {
+        throw new Error('Missing signed URL expiration timestamp');
+    }
+    const data = `${fileId}:${type}:${expiresTimestamp}`;
     return crypto.createHmac('sha256', SESSION_SECRET).update(data).digest('hex');
 }
 
